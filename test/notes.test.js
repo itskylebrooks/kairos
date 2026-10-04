@@ -249,3 +249,32 @@ test("replace: a failed write puts the old text back and says so", async () => {
   assert.equal(appends.length, 2);
   assert.equal(appends[1], "# Ada's café list\n\nBuy **oat milk**\n- [ ] coffee\n- [x] tea");
 });
+
+test("shared: creating in a shared folder or appending to a shared note needs allow_shared", async () => {
+  const sharedFolders = { ...FOLDERS, folders: FOLDERS.folders.map((f) => (f.id === F(4) ? { ...f, shared: true } : f)) };
+  const created = new Date(Date.now() + 1000).toISOString();
+  const fx = fixtures({
+    osascript: {
+      "notes.folders": [{ output: sharedFolders }],
+      "notes.by_name": [{ match: { name: "Team plan" }, output: [{ id: N(30), folder: F(4), created }] }, { output: [{ id: N(10), folder: F(2) }] }],
+      "notes.get": [{ match: { id: N(30) }, output: note({ id: N(30), name: "Team plan", folder: F(4), created }) }, { match: { id: N(10) }, once: true, output: note({ shared: true }) }, { match: { id: N(10) }, output: note({ shared: true, modified: T(6) }) }],
+    },
+    shortcuts: { "Kairos Notes Create": [{ output: "created" }], "Kairos Notes Append": [{ output: "matches: 1" }] },
+  });
+  setFakeFixtures(fx);
+  await rejectsUser(call("notes_create", { title: "Team plan", folder: F(4) }), /shared with other people.*allow_shared: true/s);
+  assert.equal(fx.calls.shortcuts, undefined, "nothing ran");
+  assert.equal((await call("notes_create", { title: "Team plan", folder: F(4), allow_shared: true })).id, N(30));
+  await rejectsUser(call("notes_append", { id: N(10), markdown: "x" }), /The note "Ada's café list" is shared/);
+  assert.equal((await call("notes_append", { id: N(10), markdown: "x", allow_shared: true })).appended, true);
+});
+
+test("read: long notes come in parts", async () => {
+  const long = `<div><h1>Ada's café list</h1></div>${"<div>line of text</div>".repeat(100)}`;
+  setFakeFixtures(fixtures({ osascript: { "notes.get": [{ output: note({ body: long }) }] }, shortcuts: {} }));
+  const a = await call("notes_read", { id: N(10), max_chars: 300 });
+  assert.equal(a.markdown.length, 300);
+  assert.equal(a.truncated, true);
+  const b = await call("notes_read", { id: N(10), max_chars: 300, offset: a.next_offset });
+  assert.equal(b.markdown, "line of text\n".repeat(100).trim().slice(300, 600));
+});

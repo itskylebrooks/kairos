@@ -77,7 +77,7 @@ Limits worth knowing:
 - **Repeating events** cannot be changed or deleted through Kairos yet (the EventKit helper would change the first occurrence). Change those in Calendar.
 - **Clearing a field** (an event's location, a reminder's notes) is not possible yet; replacing it with new text is.
 - **Mail** must be running (Kairos never opens it). Search looks at subject, sender and recipients within a date range (default the last 30 days), not inside message bodies, and leaves out trash and junk unless asked. Reading returns plain text without quoted history and signatures, in parts of 8,000 characters. Creating a draft shows a Mail window for a moment; replies keep the conversation thread and quote the original.
-- **Notes** are written through Shortcuts so Notes itself turns Markdown into real headings, checklists and tables. Block quotes and inline code lose their styling. Kairos only changes notes whose title is unique, and `notes_replace` keeps a private backup of the old text in `~/Library/Application Support/Kairos/backups/notes/`.
+- **Notes** are written through Shortcuts so Notes itself turns Markdown into real headings, checklists and tables. Block quotes and inline code lose their styling. Kairos only changes notes whose title is unique, and `notes_replace` keeps a private backup of the old text in `~/Library/Application Support/Kairos/backups/notes/`. Writing into a shared note or folder needs your explicit agreement, since other people can read it; replacing a shared note is refused. Long notes are read in parts.
 
 ## Music play log
 

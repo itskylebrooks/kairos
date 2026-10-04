@@ -9,6 +9,7 @@ import { UserError } from "../lib/errors.js";
 import { defineScript, jxa } from "../lib/osascript.js";
 import { dataDir } from "../lib/paths.js";
 import { clampInt } from "../lib/paging.js";
+import { assertNotShared } from "../lib/safety.js";
 import { runShortcut } from "../lib/shortcuts.js";
 import { fold } from "../lib/text.js";
 import { ADD, READ, UPDATE, defineTool } from "../lib/tools.js";
@@ -369,18 +370,21 @@ function snippetOf(text, word) {
   return `${a > 0 ? "…" : ""}${src.slice(a, b).replace(/\s+/g, " ").trim()}${b < src.length ? "…" : ""}`;
 }
 
-async function notesRead({ id } = {}) {
+async function notesRead({ id, max_chars, offset } = {}) {
   const n = await getNote(id, { body: true });
   const { byId } = await folderTree();
   const base = { ...summary(n, byId), attachments: (n.locked ? n.attachments : realAttachments(n)).map((a) => a.name || "(unnamed attachment)") };
   if (n.locked) return { ...base, markdown: null, message: "This note is locked with a password; its text cannot be read." };
   const md = await readMarkdown(n);
-  const out = { ...base, markdown: md.markdown, checklists: md.checklists };
+  // Long notes come in parts, so one note cannot flood the context.
+  const max = clampInt(max_chars, 200, 100000, 20000), off = clampInt(offset, 0, 1e9, 0);
+  const out = { ...base, markdown: md.markdown.slice(off, off + max), markdown_chars: md.markdown.length, checklists: md.checklists };
+  if (off + max < md.markdown.length) Object.assign(out, { truncated: true, next_offset: off + max });
   if (md.checklist_note) out.checklist_note = md.checklist_note;
   return out;
 }
 
-async function notesCreate({ title, markdown = "", folder } = {}) {
+async function notesCreate({ title, markdown = "", folder, allow_shared } = {}) {
   const t = checkTitle(title);
   let body = checkMarkdownInput(markdown);
   // The title is written separately; drop a leading "# <title>" the model may have repeated.
@@ -392,6 +396,7 @@ async function notesCreate({ title, markdown = "", folder } = {}) {
   const target = folder ? await resolveFolder(folder) : folders.find((f) => f.is_default && !f.deleted);
   if (!target) throw new UserError("Could not find the default Notes folder. Pass folder.");
   if (target.deleted) throw new UserError("Notes cannot be created in Recently Deleted.");
+  assertNotShared(target.shared, allow_shared, `The folder "${target.path}"`);
 
   // The shortcut takes a folder NAME, so it must be unique; otherwise create in the
   // default folder (if its name is unique) and move the note by id afterwards.
@@ -435,10 +440,12 @@ async function appendGuarded(name, markdown) {
   if (m[1] !== "1") throw new UserError(`Nothing was written: Shortcuts found ${m[1]} notes titled "${name}", and Kairos only writes when exactly one matches.`);
 }
 
-async function notesAppend({ id, markdown } = {}) {
+async function notesAppend({ id, markdown, allow_shared } = {}) {
   const md = checkMarkdownInput(markdown).replace(/^\n+|\n+$/g, "");
   if (!md.trim()) throw new UserError("markdown must not be empty.");
   const n = await writableNote(id);
+  const folderShared = !!(await folderTree()).byId.get(n.folder)?.shared;
+  assertNotShared(n.shared || folderShared, allow_shared, `The note "${n.name}"`);
   await appendGuarded(n.name, md);
   const after = await waitFor(async () => { const x = await getNote(id); return x.modified !== n.modified ? x : null; }, 5000);
   const { byId } = await folderTree();
@@ -507,6 +514,7 @@ async function notesReplace({ id, markdown, title, expected_modified } = {}) {
 
 const FOLDER = { type: "string", description: "Folder id, path like \"iCloud/Work/Projects\", or a folder name that is unique." };
 const DATE = { type: "string", description: "Date or date-time, e.g. 2030-01-31 or 2030-01-31T18:00 (local time)." };
+const ALLOW_SHARED = { type: "boolean", description: "Set only after the user agreed in the chat: writing into a shared folder or note lets other people read it." };
 const NOTE_ID = { type: "string", description: "Note id (x-coredata://.../ICNote/p123) from notes_list or notes_search." };
 const MD = "Markdown, parsed by Notes itself: # Title, ## Heading, ### Subheading, **bold**, *italic*, ~~strike~~, - bullets, 1. numbered, - [ ] / - [x] checklists, nesting by 4 spaces, [links](url), pipe tables, ``` code. Block quotes and inline code lose their styling.";
 
@@ -544,21 +552,24 @@ export const tools = [
   }),
   defineTool({
     name: "notes_read", app: "notes", title: "Read a note", annotations: READ, handler: notesRead,
-    description: "One note as Markdown (the title is returned separately and is not repeated in markdown), with folder, dates, flags and attachment names. Checklist ticks are included when they can be read (checklists: resolved). Pass modified to notes_replace as expected_modified.",
-    inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: NOTE_ID } },
+    description: "One note as Markdown, in parts of 20000 characters by default (max_chars, offset; the title is returned separately and is not repeated in markdown), with folder, dates, flags and attachment names. Checklist ticks are included when they can be read (checklists: resolved). Pass modified to notes_replace as expected_modified.",
+    inputSchema: {
+      type: "object", additionalProperties: false, required: ["id"],
+      properties: { id: NOTE_ID, max_chars: { type: "integer", description: "Max characters of markdown (default 20000)." }, offset: { type: "integer", description: "Continue a long note from next_offset." } },
+    },
   }),
   defineTool({
     name: "notes_create", app: "notes", title: "Create a note", annotations: ADD, handler: notesCreate,
-    description: `Create a new note with a title and a Markdown body, in a folder (default: the default Notes folder). Returns the new note's id. ${MD}`,
+    description: `Create a new note with a title and a Markdown body, in a folder (default: the default Notes folder). Returns the new note's id. Shared folders are refused unless allow_shared is true (ask the user first). ${MD}`,
     inputSchema: {
       type: "object", additionalProperties: false, required: ["title"],
-      properties: { title: { type: "string", description: "One line; becomes the note's title." }, markdown: { type: "string", description: "The body, without the title." }, folder: FOLDER },
+      properties: { title: { type: "string", description: "One line; becomes the note's title." }, markdown: { type: "string", description: "The body, without the title." }, folder: FOLDER, allow_shared: ALLOW_SHARED },
     },
   }),
   defineTool({
     name: "notes_append", app: "notes", title: "Append to a note", annotations: ADD, handler: notesAppend,
-    description: `Add Markdown at the end of an existing note, keeping everything already in it (checklists, attachments). Refused for locked notes, notes in Recently Deleted, and notes whose title is not unique. ${MD}`,
-    inputSchema: { type: "object", additionalProperties: false, required: ["id", "markdown"], properties: { id: NOTE_ID, markdown: { type: "string" } } },
+    description: `Add Markdown at the end of an existing note, keeping everything already in it (checklists, attachments). Refused for locked notes, notes in Recently Deleted, and notes whose title is not unique; shared notes or folders need allow_shared (ask the user first). ${MD}`,
+    inputSchema: { type: "object", additionalProperties: false, required: ["id", "markdown"], properties: { id: NOTE_ID, markdown: { type: "string" }, allow_shared: ALLOW_SHARED } },
   }),
   defineTool({
     name: "notes_replace", app: "notes", title: "Replace a note's text", annotations: UPDATE, handler: notesReplace,
