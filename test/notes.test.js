@@ -290,3 +290,27 @@ test("replace preview: what will happen, checks included, nothing written", asyn
   assert.equal(fx.calls.shortcuts, undefined);
   assert.ok(!fx.calls.osascript.some((c) => /clear|set_body/.test(c.name)), "nothing written");
 });
+
+test("a shared folder makes its notes shared: flagged when read, never replaced", async () => {
+  const sharedFolders = { ...FOLDERS, folders: FOLDERS.folders.map((f) => (f.id === F(2) ? { ...f, shared: true } : f)) };
+  const fx = fixtures({ osascript: { "notes.folders": [{ output: sharedFolders }] } });
+  setFakeFixtures(fx);
+  await call("notes_folders", {}); // refresh the folder cache
+  const listed = await call("notes_list", {});
+  const mine = listed.notes.find((n) => n.id === N(10));
+  assert.equal(mine.shared, false);
+  assert.equal(mine.from_others, true, "others can write into a shared folder");
+  assert.deepEqual(processResult(listed).notes.find((n) => n.id === N(10)).untrusted_fields, ["title", "preview"]);
+  await rejectsUser(call("notes_replace", { id: N(10), markdown: "x", expected_modified: T(5) }), /shared with other people/);
+  assert.equal(fx.calls.shortcuts, undefined, "nothing was written");
+  setFakeFixtures(fixtures());
+  await call("notes_folders", {}); // and back, for whatever runs next
+});
+
+test("list: a bare modified_until date includes that day", async () => {
+  setFakeFixtures(fixtures());
+  await call("notes_folders", {});
+  const day = SCAN.map((n) => new Date(n.modified)).sort((a, b) => b - a)[0];
+  const bare = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+  assert.equal((await call("notes_list", { modified_until: bare })).total, SCAN.length, "the newest note's own day is included");
+});

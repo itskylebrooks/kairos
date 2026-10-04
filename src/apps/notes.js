@@ -4,7 +4,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { isoLocal, parseArgDate } from "../lib/dates.js";
+import { addDays, isBareDay, isoLocal, parseArgDate } from "../lib/dates.js";
 import { UserError } from "../lib/errors.js";
 import { defineScript, jxa } from "../lib/osascript.js";
 import { dataDir } from "../lib/paths.js";
@@ -198,8 +198,9 @@ function summary(n, byId) {
     modified: n.modified ? isoLocal(new Date(n.modified)) : null,
     locked: !!n.locked,
     shared: !!n.shared,
-    // Shared notes may hold text other people wrote: marked and cleaned centrally.
-    ...(n.shared ? { from_others: true } : {}),
+    // Shared notes, and notes in a shared folder, may hold text other people wrote: marked
+    // and cleaned centrally.
+    ...(n.shared || (f && f.shared) ? { from_others: true } : {}),
     ...(f && f.deleted ? { deleted: true } : {}),
   };
 }
@@ -352,8 +353,10 @@ async function scan({ folder, include_deleted, text }) {
 }
 
 function dateFilter(items, since, until) {
-  const from = parseArgDate(since, "modified_since"), to = parseArgDate(until, "modified_until");
-  return items.filter((n) => (!from || new Date(n.modified) >= from) && (!to || new Date(n.modified) <= to));
+  const from = parseArgDate(since, "modified_since");
+  let to = parseArgDate(until, "modified_until");
+  if (to && isBareDay(until)) to = addDays(to, 1); // a bare end date means through that day
+  return items.filter((n) => (!from || new Date(n.modified) >= from) && (!to || new Date(n.modified) < to));
 }
 
 async function notesList({ folder, modified_since, modified_until, include_deleted, limit, offset } = /** @type {any} */ ({})) {
@@ -490,14 +493,14 @@ async function notesAppend({ id, markdown, allow_shared } = /** @type {any} */ (
     _journal: {
       action: "append", target: { kind: "note", id, title: n.name }, summary: `Added ${md.length} characters to the note "${n.name}".`,
       before: { title: n.name, backup }, after: { id, title: (after || n).name, modified: (after || n).modified },
-      undo: restorable(n, old),
+      undo: restorable(n, old, folderShared),
     },
   };
 }
 
 /** Whether a note can be put back from its backup through notes_replace. */
-function restorable(n, old) {
-  if (n.shared) return { possible: false, reason: "The note is shared; Kairos does not rewrite shared notes." };
+function restorable(n, old, folderShared = false) {
+  if (n.shared || folderShared) return { possible: false, reason: "The note is shared; Kairos does not rewrite shared notes." };
   if (realAttachments(n).length) return { possible: false, reason: "The note has attachments, which cannot be rebuilt from text." };
   if (old.checklists === "unknown") return { possible: false, reason: "Its checklist ticks could not be read, so restoring would lose them. The old text is in the backup." };
   return { possible: true };
@@ -554,7 +557,8 @@ async function planReplace({ id, markdown, title, expected_modified } = /** @typ
   if (Math.abs(Date.parse(n.modified) - expected) >= 1000) {
     throw new UserError(`The note changed since it was read (modified ${isoLocal(new Date(n.modified))}). Read it again with notes_read before replacing it.`);
   }
-  if (n.shared) throw new UserError("This note is shared with other people; Kairos does not replace shared notes. Use notes_append instead.");
+  // A note in a shared folder is shared too, even when the note itself does not say so.
+  if (n.shared || (await folderTree()).byId.get(n.folder)?.shared) throw new UserError("This note is shared with other people; Kairos does not replace shared notes. Use notes_append instead.");
   const files = realAttachments(n);
   if (files.length) throw new UserError(`This note has ${files.length} attachment(s) that cannot be rebuilt from Markdown, so Kairos does not replace it. Use notes_append instead.`);
   const newTitle = title === undefined || title === null || title === "" ? n.name : checkTitle(title);
@@ -653,7 +657,7 @@ export const tools = [
     inputSchema: {
       type: "object", additionalProperties: false,
       properties: {
-        folder: FOLDER, modified_since: DATE, modified_until: DATE,
+        folder: FOLDER, modified_since: DATE, modified_until: { ...DATE, description: `${DATE.description} A bare date includes that day.` },
         include_deleted: { type: "boolean", description: "Also list notes in Recently Deleted (default false)." },
         limit: { type: "integer", description: "Max notes (default 50, up to 500)." },
         offset: { type: "integer", description: "Skip this many (paging)." },
@@ -696,7 +700,7 @@ export const tools = [
   }),
   defineTool({
     name: "notes_replace", app: "notes", title: "Replace a note's text", annotations: UPDATE, handler: notesReplace, preview: previewReplace,
-    description: `Replace the whole body of a note with Markdown, in place (same id, folder and creation date). Destructive, so two steps: the first call only returns a preview and a confirmation; show the preview, wait for the user's yes, then call again with the same arguments plus confirmation. Requires expected_modified from a fresh notes_read. Refused for locked or shared notes, notes with attachments, and notes whose title is not unique. The old version is saved to a private backup file first. ${MD}`,
+    description: `Replace the whole body of a note with Markdown, in place (same id, folder and creation date). Destructive, so two steps: the first call only returns a preview and a confirmation; show the preview, wait for the user's yes, then call again with the same arguments plus confirmation. Requires expected_modified from a fresh notes_read. Refused for locked notes, shared notes and notes in a shared folder, notes with attachments, and notes whose title is not unique. The old version is saved to a private backup file first. ${MD}`,
     inputSchema: {
       type: "object", additionalProperties: false, required: ["id", "markdown", "expected_modified"],
       properties: {
