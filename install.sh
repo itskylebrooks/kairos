@@ -5,6 +5,7 @@
 #   ./install.sh               install or update, then write the "kairos" entry in Claude's config
 #   ./install.sh --dry-run     show the config change without writing anything
 #   ./install.sh --write LIST  set which apps may write, e.g. notes,calendar (or all, or none)
+#   ./install.sh --music-log on|off  switch the Music play log on or off without asking
 #   ./install.sh --config F    use another Claude config file (for testing)
 #
 # Safe to run again: it skips what is already there and backs up the config before editing it.
@@ -29,13 +30,14 @@ EVENT_SHA256="dee0b28da225f313a85f14179b761b8f46f051339f97d91fe5adfc3df1bbf9e7"
 DISCLAIM_SHA256="4338a80457fba1359a56f0c010ecaf3b2c59856a74bd2b70acaaf6060a1814dc"
 EVENT_DIR="$DIR/vendor/eventkit"
 
-DRY=0 WRITE_ARG=""
+DRY=0 WRITE_ARG="" MUSIC_LOG_ARG=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY=1 ;;
     --config) CONFIG="$2"; shift ;;
     --write) WRITE_ARG="$2"; shift ;;
-    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
+    --music-log) MUSIC_LOG_ARG="$2"; shift ;;
+    -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1 (see --help)"; exit 1 ;;
   esac
   shift
@@ -227,6 +229,40 @@ else
   fi
   edit_config
   ok "Wrote the kairos entry (apps: $APPS, write: ${WRITE:-none})."
+fi
+
+# 6. Music play log (opt in): a LaunchAgent that saves play counts so Kairos can tell what
+#    was played when. It runs hourly and at login, never opens Music, and keeps its data in
+#    ~/Library/Application Support/Kairos/music/.
+say "6. Music play log"
+AGENT_PLIST="$HOME/Library/LaunchAgents/kairos.music-log.plist"
+MUSIC_LOG=""
+case "$MUSIC_LOG_ARG" in
+  on|off) MUSIC_LOG="$MUSIC_LOG_ARG" ;;
+  "")
+    if [ -f "$AGENT_PLIST" ]; then
+      MUSIC_LOG="on"; ok "Stays on (refreshing the background job)."
+    else
+      echo "  Music keeps only each song's total play count and last play date, never a history."
+      echo "  Kairos can save the counts several times a day, so Claude can later answer questions"
+      echo "  like \"what did I listen to most in September\". It runs in the background, never opens"
+      echo "  Music, and keeps the data on this Mac only."
+      if ask "Keep a Music play log? Type y and Enter for yes, just Enter for no."; then MUSIC_LOG="on"; else MUSIC_LOG="off"; fi
+    fi ;;
+  *) fail "--music-log takes on or off." ;;
+esac
+if [ "$DRY" = 1 ]; then
+  warn "Would switch the play log $MUSIC_LOG (dry run)."
+elif [ "$MUSIC_LOG" = "on" ]; then
+  "$PRIVATE_NODE" "$DIR/src/cli/music-log.js" agent install >/dev/null || fail "Could not install the play log background job."
+  ok "Play log on: checks hourly and at login, takes the first snapshot of each day and one every 3 hours while Music is open."
+else
+  if [ -f "$AGENT_PLIST" ]; then
+    "$PRIVATE_NODE" "$DIR/src/cli/music-log.js" agent remove >/dev/null || true
+    ok "Play log off. Saved history stays in ~/Library/Application Support/Kairos/music/ (delete that folder to remove it)."
+  else
+    ok "Play log off. To switch it on later: ./install.sh --music-log on"
+  fi
 fi
 
 say "Done. Left for you:"

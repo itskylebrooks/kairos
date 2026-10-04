@@ -64,7 +64,7 @@ The GitHub repo (`itskylebrooks/kairos`) is public, and so is its full history. 
 | Contacts | yes | no |
 | Notes | yes | create, append (body replace only for notes without checklists or attachments) |
 | Mail | yes | drafts only, never send |
-| Music | yes | later, additive only (create playlist, add library songs, playback), never delete |
+| Music | yes, plus an opt in play log | later, additive only (create playlist, add library songs, playback), never delete |
 
 Out of scope: Messages (needs Full Disk Access), Safari history, Maps.
 
@@ -110,9 +110,16 @@ Out of scope: Messages (needs Full Disk Access), Safari history, Maps.
 - `whose({ _or: [...] })` fails with "Can't convert types" on macOS 27. Bulk reads of the whole library are fast (name, artist, album for about 1,400 tracks in under 0.1 s; `persistentID` about 2 s), so filter in JS instead.
 - Only library tracks have counts: songs streamed without being added to the library are invisible.
 
+**Music play log** (opt in, `src/lib/playlog.js`, `src/cli/music-log.js`).
+- A LaunchAgent (`kairos.music-log`, in `~/Library/LaunchAgents/`) runs `music-log.js snapshot` hourly and at login. Not a timer in the MCP server: Claude starts and stops the server at will.
+- The command never opens Music. It takes the first snapshot of each local day as soon as Music is open, then one every 3 hours while Music is open; otherwise it records the check and exits.
+- Verified on macOS 27 (2026-10-04): the private Node started by launchd (not by Claude) can control Music once the user allows the prompt.
+- Data in `~/Library/Application Support/Kairos/music/` (dir 0700, files 0600), never in the repo: `snapshots-YYYY.jsonl` (changed counts by persistent ID, a full baseline each month), `catalog.json` (metadata and earlier names), `state.json` (latest counts and last check; rebuilt from snapshots when missing). The log in `~/Library/Logs/Kairos/` holds counts and reasons, never track names.
+- Replay rules: plays are count increases between snapshots; a falling count is a reset, never negative plays; a track first seen later counts only plays after the previous snapshot; the last play date pins the latest play to its day, other plays across a multi day interval are "uncertain"; a last play date before the interval means plays arrived late through sync. History tools always return coverage (first and last snapshot, gaps over 30 hours) and the limits; days outside the logged span are null, not 0.
+
 ## Installer
 
-`install.sh`: private Node binary (`runtime/node-kairos`) with checksum check, the pinned EventKit helper, the Kairos shortcuts (built and signed by `scripts/build-shortcuts.js`, one "Add Shortcut" click each, duplicates refused), a working self test, backup of the Claude config, one `kairos` entry with `KAIROS_APPS` and `KAIROS_WRITE`. Writing is asked per app; earlier answers are kept and only apps new since the last install are asked (`--write notes,calendar` or `all`/`none` skips the questions). `--dry-run` and `--config` allow testing without touching the real config. After updating, Claude must be quit (Cmd+Q) and reopened; the installer says so.
+`install.sh`: private Node binary (`runtime/node-kairos`) with checksum check, the pinned EventKit helper, the opt in Music play log agent (`--music-log on|off`), the Kairos shortcuts (built and signed by `scripts/build-shortcuts.js`, one "Add Shortcut" click each, duplicates refused), a working self test, backup of the Claude config, one `kairos` entry with `KAIROS_APPS` and `KAIROS_WRITE`. Writing is asked per app; earlier answers are kept and only apps new since the last install are asked (`--write notes,calendar` or `all`/`none` skips the questions). `--dry-run` and `--config` allow testing without touching the real config. After updating, Claude must be quit (Cmd+Q) and reopened; the installer says so.
 - Updating a shortcut: delete it in the Shortcuts app, then rerun the installer (importing over an existing name creates a duplicate).
 
 The installer is generic: it knows nothing about the author's old `apple-mcp` setup. Retiring the old `apple-data` and `apple-events` entries is a one-off manual step on the author's Mac (with a config backup), done when Kairos covers their apps: `apple-events` after Phase 2, `apple-data` after Phase 3. Do not modify or uninstall `~/Code/apple-mcp` until then.
@@ -123,8 +130,8 @@ The installer is generic: it knows nothing about the author's old `apple-mcp` se
 2. Calendar and Reminders: port reads, add writes, retire apple-events.
 3. Contacts and Music: port as they are.
 4. Mail.
-5. Release prep: README, MIT license, install docs, permission prompt screenshots.
-6. Later: own Swift EventKit helper, Music additive writes.
+5. Release prep: MIT license, permission prompt screenshots, README polish (the README exists and is kept current with each change).
+6. Later: own Swift EventKit helper, Music additive writes, importing the privacy.apple.com export into the play log.
 
 ## Workflow
 
@@ -132,3 +139,4 @@ The installer is generic: it knows nothing about the author's old `apple-mcp` se
 - Before each phase, show the planned tool list (names, inputs, outputs) and wait for a go.
 - Real data: read tools only. Write tools are tested only in a dedicated `Kairos Test` calendar, reminder list, notes folder and mail draft, cleaned up afterwards.
 - No dashes in prose the user reads (README, docs, messages): use a colon or comma instead.
+- Update the docs in the same commit as the change: CLAUDE.md, README (install and tool sections) and tool descriptions.
