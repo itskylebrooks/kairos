@@ -54,3 +54,36 @@ test("confirmation tokens: one use, same tool and arguments only, expire", () =>
   assert.throws(() => redeemToken("calendar_update", args, t4, 1000 + CONFIRM_TTL_MS), /expired/);
   assert.throws(() => redeemToken("calendar_update", args, "confirm-made-up", 1000), /Unknown/);
 });
+
+test("only registered scripts run, and only allowed programs start", async () => {
+  const { defineScript, isRegistered, jxa } = await import("../src/lib/osascript.js");
+  const { allowedPrograms, run, runSync } = await import("../src/lib/run.js");
+  await assert.rejects(jxa("function run(argv) { return 1 }"), /Only scripts registered/);
+  await assert.rejects(jxa({ name: "x", source: "function run(argv) {}" }), /Only scripts registered/, "a look alike object is not enough");
+  assert.ok(isRegistered(defineScript("test.ok", "function run(argv) { return argv[0]; }")));
+  assert.throws(() => defineScript("test.bad", "do shell script"), /run function/);
+  await assert.rejects(run("/bin/sh", ["-c", "echo hi"]), /may not start/);
+  assert.throws(() => runSync("/usr/bin/curl", ["https://example.com"]), /may not start/);
+  assert.deepEqual(allowedPrograms().filter((p) => p.startsWith("/usr/bin/") || p.startsWith("/bin/")), ["/usr/bin/osascript", "/usr/bin/shortcuts", "/bin/launchctl"]);
+  allowedPrograms().push("/bin/sh");
+  await assert.rejects(run("/bin/sh", []), /may not start/, "the list cannot be extended from outside");
+});
+
+test("every script in the source is defined at module level with a fixed name", async () => {
+  const { readFileSync, readdirSync } = await import("node:fs");
+  // osascript.js defines the registry itself; every other file only registers scripts.
+  const files = ["src/apps", "src/cli", "src/lib"].flatMap((d) => readdirSync(d).filter((f) => f.endsWith(".js")).map((f) => `${d}/${f}`)).filter((f) => f !== "src/lib/osascript.js");
+  for (const f of files) {
+    const src = readFileSync(f, "utf8");
+    for (const line of src.split("\n").filter((l) => /defineScript\(/.test(l) && !/function defineScript|import /.test(l) && !/^\s*(\/\/|\*|\/\*\*)/.test(l))) {
+      assert.match(line, /^(export )?const [A-Z_]+ = defineScript\("[a-z_.]+", `/, `${f}: scripts must be module level constants: ${line.trim()}`);
+    }
+    assert.doesNotMatch(src, /osascript", \[[^\]]*-e", (?!script\.source)/, `${f} must not pass raw source to osascript`);
+  }
+});
+
+test("sealing stops new scripts", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const r = spawnSync(process.execPath, ["--input-type=module", "-e", 'import { defineScript, sealScripts } from "./src/lib/osascript.js"; sealScripts(); try { defineScript("late", "function run(argv) {}"); console.log("defined"); } catch (e) { console.log("refused"); }'], { encoding: "utf8" });
+  assert.equal(r.stdout.trim(), "refused");
+});

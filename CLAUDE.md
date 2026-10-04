@@ -35,6 +35,8 @@ The GitHub repo (`itskylebrooks/kairos`) is public, and so is its full history. 
 
 Only governs what Kairos' tools do for Claude; nothing here changes macOS or other apps.
 - Results: apps mark items holding other people's text with `from_others: true` (emails not from the user's addresses, events in read only calendars, shared notes). The server then removes invisible characters (zero width, bidi controls) from those items, lists their text fields in `untrusted_fields`, adds one warning `note`, and refuses any result over 100,000 characters. Apps never add their own notes or cleaning.
+- Scripts: every JXA script is a module level `defineScript("<name>", `...`)` constant. The server (and `music-log.js`) seal the registry at startup, and `jxa()` runs only registered script objects, never a string. A test scans the source for violations.
+- Programs: `run()` / `runSync()` start only `/usr/bin/osascript`, `/usr/bin/shortcuts`, `/bin/launchctl` and the two EventKit helper binaries, never through a shell. The list is private to `run.js`.
 
 ## Architecture
 

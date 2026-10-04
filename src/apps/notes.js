@@ -6,7 +6,7 @@ import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isoLocal, parseArgDate } from "../lib/dates.js";
 import { UserError } from "../lib/errors.js";
-import { jxa } from "../lib/osascript.js";
+import { defineScript, jxa } from "../lib/osascript.js";
 import { dataDir } from "../lib/paths.js";
 import { clampInt } from "../lib/paging.js";
 import { runShortcut } from "../lib/shortcuts.js";
@@ -23,7 +23,7 @@ const DELETED_NAMES = new Set(["Recently Deleted", "Zuletzt gelöscht", "Нед�
 
 /* ================= JXA (static scripts; input arrives as JSON in argv[0]) ================= */
 
-const JXA_FOLDERS = `
+const JXA_FOLDERS = defineScript("notes.folders", `
 function run(argv) {
   const N = Application("Notes");
   const out = { accounts: [], folders: [] };
@@ -41,11 +41,11 @@ function run(argv) {
     }
   }
   return JSON.stringify(out);
-}`;
+}`);
 
 // All notes in one bulk read (one Apple Events round trip per property), plus a note to
 // folder map built from each folder's note ids. Bulk container lookups return nothing.
-const JXA_SCAN = `
+const JXA_SCAN = defineScript("notes.scan", `
 function run(argv) {
   const o = JSON.parse(argv[0]);
   const N = Application("Notes");
@@ -66,9 +66,9 @@ function run(argv) {
     out.push({ id: ids[i], name: names[i], folder: fid, created: iso(cd[i]), modified: iso(md[i]), locked: pw[i], shared: sh[i], text: t });
   }
   return JSON.stringify(out);
-}`;
+}`);
 
-const JXA_GET = `
+const JXA_GET = defineScript("notes.get", `
 function run(argv) {
   const o = JSON.parse(argv[0]);
   const N = Application("Notes");
@@ -81,46 +81,46 @@ function run(argv) {
   try { out.attachments = n.attachments().map((a) => ({ name: a.name(), id: a.id() })); } catch (e) {}
   if (!out.locked && o.body) { out.body = n.body(); out.text = n.plaintext(); }
   return JSON.stringify(out);
-}`;
+}`);
 
 // Every note with this exact name, with its folder: to prove a name is unique.
-const JXA_BY_NAME = `
+const JXA_BY_NAME = defineScript("notes.by_name", `
 function run(argv) {
   const o = JSON.parse(argv[0]);
   const N = Application("Notes");
   const ns = N.notes.whose({ name: o.name })();
   return JSON.stringify(ns.map((n) => ({ id: n.id(), folder: n.container().id(), created: n.creationDate().toISOString() })));
-}`;
+}`);
 
-const JXA_SET_BODY = `
+const JXA_SET_BODY = defineScript("notes.set_body", `
 function run(argv) {
   const o = JSON.parse(argv[0]);
   const n = Application("Notes").notes.byId(o.id);
   n.body = o.html;
   return JSON.stringify({ modified: n.modificationDate().toISOString(), name: n.name() });
-}`;
+}`);
 
 // Empties a note and keeps it findable by title: with an empty body the note keeps the
 // name set here. Notes then builds the new body, title included, from Markdown. Writing
 // the title as HTML here instead would turn it into fake bold text, not the Title style.
-const JXA_CLEAR = `
+const JXA_CLEAR = defineScript("notes.clear", `
 function run(argv) {
   const o = JSON.parse(argv[0]);
   const n = Application("Notes").notes.byId(o.id);
   n.body = "";
   n.name = o.name;
   return JSON.stringify({ name: n.name() });
-}`;
+}`);
 
-const JXA_MOVE = `
+const JXA_MOVE = defineScript("notes.move", `
 function run(argv) {
   const o = JSON.parse(argv[0]);
   const N = Application("Notes");
   N.move(N.notes.byId(o.id), { to: N.folders.byId(o.folder) });
   return JSON.stringify({ ok: true });
-}`;
+}`);
 
-const notesJxa = (name, script, input, timeoutMs) => jxa(`notes.${name}`, script, input, { app: APP, timeoutMs });
+const notesJxa = (script, input, timeoutMs) => jxa(script, input, { app: APP, timeoutMs });
 
 /* ================= folders ================= */
 
@@ -129,7 +129,7 @@ let folderCache = null, folderCacheAt = 0;
 /** All folders with account, path and trash flag. Cached for 60 s. */
 async function folderTree({ fresh = false } = {}) {
   if (!fresh && folderCache && Date.now() - folderCacheAt < 60e3) return folderCache;
-  const raw = await notesJxa("folders", JXA_FOLDERS, {}, 120000);
+  const raw = await notesJxa(JXA_FOLDERS, {}, 120000);
   const accounts = new Map(raw.accounts.map((a) => [a.id, a]));
   const byId = new Map(raw.folders.map((f) => [f.id, f]));
   const pathOf = (f, seen = new Set()) => {
@@ -199,7 +199,7 @@ async function getNote(id, { body = false } = {}) {
   if (typeof id !== "string" || !id.startsWith("x-coredata://") || !/\/ICNote\//.test(id)) {
     throw new UserError(`"${id}" is not a note id. Note ids look like x-coredata://.../ICNote/p123; get them from notes_list or notes_search.`);
   }
-  const n = await notesJxa("get", JXA_GET, { id, body });
+  const n = await notesJxa(JXA_GET, { id, body });
   if (!n.found) throw new UserError(`No note with id ${id}. It may have been deleted.`);
   return n;
 }
@@ -207,7 +207,7 @@ async function getNote(id, { body = false } = {}) {
 /** Notes (outside Recently Deleted) with exactly this name. */
 async function liveNotesNamed(name) {
   const { byId } = await folderTree();
-  const all = await notesJxa("by_name", JXA_BY_NAME, { name });
+  const all = await notesJxa(JXA_BY_NAME, { name });
   return all.filter((n) => !byId.get(n.folder)?.deleted);
 }
 
@@ -320,7 +320,7 @@ async function notesFolders() {
 async function scan({ folder, include_deleted, text }) {
   const tree = await folderTree();
   const targets = folder ? [await resolveFolder(folder)] : visibleFolders(tree.folders, include_deleted);
-  const raw = await notesJxa("scan", JXA_SCAN, { folders: targets.map((f) => f.id), text }, 180000);
+  const raw = await notesJxa(JXA_SCAN, { folders: targets.map((f) => f.id), text }, 180000);
   return { raw, byId: tree.byId };
 }
 
@@ -404,11 +404,11 @@ async function notesCreate({ title, markdown = "", folder } = {}) {
   if (!/created/.test(out)) throw new Error(`Create shortcut returned unexpected output: ${out.slice(0, 200)}`);
 
   const found = await waitFor(async () => {
-    const same = (await notesJxa("by_name", JXA_BY_NAME, { name: t })).filter((n) => n.folder === via.id && Date.parse(n.created) >= t0);
+    const same = (await notesJxa(JXA_BY_NAME, { name: t })).filter((n) => n.folder === via.id && Date.parse(n.created) >= t0);
     return same.length ? same.sort((a, b) => b.created.localeCompare(a.created))[0] : null;
   });
   if (!found) throw new UserError(`The note "${t}" was created, but Kairos could not find it afterwards in ${via.path}. Check Notes.`);
-  if (via.id !== target.id) await notesJxa("move", JXA_MOVE, { id: found.id, folder: target.id });
+  if (via.id !== target.id) await notesJxa(JXA_MOVE, { id: found.id, folder: target.id });
 
   const n = await getNote(found.id);
   const { byId } = await folderTree({ fresh: true });
@@ -466,7 +466,7 @@ async function notesReplace({ id, markdown, title, expected_modified } = {}) {
 
   // Empty the note (keeping its title as name), then let Notes build title and body from Markdown.
   const rebuild = async (t, md) => {
-    await notesJxa("clear", JXA_CLEAR, { id, name: t });
+    await notesJxa(JXA_CLEAR, { id, name: t });
     // Shortcuts' index learns a new title a few seconds later; write only once it does.
     if (t !== n.name || t !== newTitle) {
       const seen = await waitFor(async () => /^matches: 1\b/.test(await runShortcut(SHORTCUT_READ, { name: t })), 15000, 1000);
@@ -479,7 +479,7 @@ async function notesReplace({ id, markdown, title, expected_modified } = {}) {
       await rebuild(n.name, old.markdown);
       return `${why} The previous text was written back${old.checklists === "unknown" ? " (checklist ticks may be lost)" : ""}. A copy is in ${backup}.`;
     } catch (e) {
-      try { await notesJxa("set_body", JXA_SET_BODY, { id, html: n.body }); } catch {}
+      try { await notesJxa(JXA_SET_BODY, { id, html: n.body }); } catch {}
       return `${why} Restoring the previous text through Shortcuts also failed (${e.message}); the old HTML was put back, which may lose checklists. A full copy is in ${backup}.`;
     }
   };

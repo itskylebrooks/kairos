@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { ALL_TOOLS } from "./apps/index.js";
 import { readConfig } from "./lib/config.js";
 import { UserError } from "./lib/errors.js";
+import { sealScripts } from "./lib/osascript.js";
 import { processResult } from "./lib/safety.js";
 import { describeTool, selectTools, validateArgs } from "./lib/tools.js";
 
@@ -142,6 +143,7 @@ export function serveStdio(server, { input = process.stdin, output = process.std
 }
 
 function main() {
+  sealScripts(); // every script is defined by now; none can be added while serving
   const config = readConfig();
   for (const w of config.warnings) log(w);
   const server = createServer({ config });

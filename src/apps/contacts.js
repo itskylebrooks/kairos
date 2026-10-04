@@ -1,12 +1,12 @@
 // Contacts tools (read only), through Contacts scripting.
 // Every card is read in one Apple Events round trip per property (bulk fetch); Contacts is
 // quit again if this call had to start it. Results are cached for 5 minutes.
-import { jxa } from "../lib/osascript.js";
+import { defineScript, jxa } from "../lib/osascript.js";
 import { clampInt, page } from "../lib/paging.js";
 import { fold } from "../lib/text.js";
 import { READ, defineTool } from "../lib/tools.js";
 
-const JXA_CONTACTS = `
+const JXA_CONTACTS = defineScript("contacts.all", `
 function run(argv) {
   const C = Application("Contacts");
   const wasRunning = C.running();
@@ -29,7 +29,7 @@ function run(argv) {
   } finally {
     if (!wasRunning) { try { C.quit(); } catch (e) {} }
   }
-}`;
+}`);
 
 // "_$!<Mobile>!$_" -> "mobile"
 const cleanLabel = (l) => (l ? String(l).replace(/^_\$!</, "").replace(/>!\$_$/, "").toLowerCase() : null);
@@ -66,7 +66,7 @@ export function toContacts(raw) {
 let cache = null, cacheAt = 0;
 async function allContacts() {
   if (cache && Date.now() - cacheAt < 5 * 60e3) return cache;
-  cache = toContacts(await jxa("contacts.all", JXA_CONTACTS, {}, { app: "Contacts", timeoutMs: 120000 }));
+  cache = toContacts(await jxa(JXA_CONTACTS, {}, { app: "Contacts", timeoutMs: 120000 }));
   cacheAt = Date.now();
   return cache;
 }

@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { eventkit } from "../src/lib/eventkit.js";
-import { jxa } from "../src/lib/osascript.js";
+import { defineScript, jxa } from "../src/lib/osascript.js";
+
+const ECHO = defineScript("example.echo", "function run(argv) { return argv[0]; }");
+const OTHER = defineScript("example.other", "function run(argv) { return argv[0]; }");
 
 const FIXTURE = fileURLToPath(new URL("./fixtures/fake-basic.json", import.meta.url));
 let saved;
@@ -11,15 +14,15 @@ before(() => { saved = process.env.KAIROS_FAKE; process.env.KAIROS_FAKE = FIXTUR
 after(() => { if (saved === undefined) delete process.env.KAIROS_FAKE; else process.env.KAIROS_FAKE = saved; });
 
 test("jxa answers from the matching fixture case", async () => {
-  assert.deepEqual(await jxa("example.echo", "never run", { mode: "hello", extra: 1 }), { greeting: "Hello, Ada Example" });
+  assert.deepEqual(await jxa(ECHO, { mode: "hello", extra: 1 }), { greeting: "Hello, Ada Example" });
 });
 
 test("jxa fixture errors are thrown", async () => {
-  await assert.rejects(jxa("example.echo", "never run", { mode: "fail" }), /Example failure/);
+  await assert.rejects(jxa(ECHO, { mode: "fail" }), /Example failure/);
 });
 
 test("missing fixtures fail loudly", async () => {
-  await assert.rejects(jxa("example.other", "never run", {}), /no osascript fixture/);
+  await assert.rejects(jxa(OTHER, {}), /no osascript fixture/);
   await assert.rejects(eventkit(["reminders", "list", "--json"]), /no eventkit fixture/);
 });
 

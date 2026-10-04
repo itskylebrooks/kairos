@@ -7,7 +7,7 @@
 import { WEEKDAYS, addDays, ekStamp, isBareDay, localDay, localStamp, parseArgDate, parseEkDate, startOfDay } from "../lib/dates.js";
 import { UserError } from "../lib/errors.js";
 import { eventkit } from "../lib/eventkit.js";
-import { jxa } from "../lib/osascript.js";
+import { defineScript, jxa } from "../lib/osascript.js";
 import { clampInt } from "../lib/paging.js";
 import { ADD, DELETE, READ, UPDATE, defineTool } from "../lib/tools.js";
 
@@ -19,7 +19,7 @@ const norm = (s) => String(s ?? "").toLowerCase();
 // call had to start it.
 // Bulk calendarIdentifier() fails ("Can't get object") when any calendar lacks one, so ids
 // are read one by one.
-const JXA_CALENDARS = `
+const JXA_CALENDARS = defineScript("calendar.calendars", `
 function run(argv) {
   const C = Application("Calendar");
   const wasRunning = C.running();
@@ -31,14 +31,14 @@ function run(argv) {
   } finally {
     if (!wasRunning) { try { C.quit(); } catch (e) {} }
   }
-}`;
+}`);
 
 let calCache = null, calAt = 0;
 
 /** @returns {Promise<{ id?: string, name: string, writable: boolean }[]>} */
 async function calendars({ fresh = false } = {}) {
   if (!fresh && calCache && Date.now() - calAt < 5 * 60e3) return calCache;
-  const r = await jxa("calendar.calendars", JXA_CALENDARS, {}, { app: "Calendar", timeoutMs: 60000 });
+  const r = await jxa(JXA_CALENDARS, {}, { app: "Calendar", timeoutMs: 60000 });
   calCache = r.names.map((name, i) => ({ name, writable: !!r.writable[i], ...(r.ids[i] ? { id: r.ids[i] } : {}) }));
   calAt = Date.now();
   return calCache;

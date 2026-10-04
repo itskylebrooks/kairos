@@ -7,17 +7,17 @@
 //   music-log.js agent install|remove|status
 //
 // The log file (~/Library/Logs/Kairos/music-log.log) holds counts and reasons, never track names.
-import { execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { jxa } from "../lib/osascript.js";
+import { defineScript, jxa, sealScripts } from "../lib/osascript.js";
 import { agentsDir, logDir } from "../lib/paths.js";
+import { runSync } from "../lib/run.js";
 import { AGENT_LABEL, musicDir, runSnapshot, status } from "../lib/playlog.js";
 const SELF = fileURLToPath(import.meta.url);
 
 // Bulk reads, one round trip per property. Returns at once, without opening Music, when it is closed.
-const JXA_LIBRARY = `
+const JXA_LIBRARY = defineScript("music.library", `
 function run(argv) {
   const M = Application("Music");
   if (!M.running()) return JSON.stringify({ running: false });
@@ -29,9 +29,9 @@ function run(argv) {
     name: names[i] || null, artist: artists[i] || null, album: albums[i] || null,
     duration: durations[i] ? Math.round(durations[i]) : null,
   })) });
-}`;
+}`);
 
-export const readLibrary = () => jxa("music.library", JXA_LIBRARY, {}, { app: "Music", timeoutMs: 180000 });
+export const readLibrary = () => jxa(JXA_LIBRARY, {}, { app: "Music", timeoutMs: 180000 });
 
 function log(line) {
   try {
@@ -72,7 +72,7 @@ export function agentPlist(node = process.execPath, script = SELF) {
 }
 
 const domain = () => `gui/${process.getuid()}`;
-const launchctl = (...args) => execFileSync("/bin/launchctl", args, { stdio: "pipe" }).toString();
+const launchctl = (...args) => runSync("/bin/launchctl", args);
 const loaded = () => { try { launchctl("print", `${domain()}/${AGENT_LABEL}`); return true; } catch { return false; } };
 
 function agent(cmd) {
@@ -94,6 +94,7 @@ function agent(cmd) {
 }
 
 async function main(argv) {
+  sealScripts();
   const [cmd, sub] = argv;
   if (cmd === "snapshot") {
     const t0 = Date.now();

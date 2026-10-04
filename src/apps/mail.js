@@ -12,7 +12,7 @@
 // Mail is never opened by Kairos: when it is not running, the tools say so.
 import { UserError } from "../lib/errors.js";
 import { isBareDay, isoLocal, parseArgDate, addDays, startOfDay } from "../lib/dates.js";
-import { jxa } from "../lib/osascript.js";
+import { defineScript, jxa } from "../lib/osascript.js";
 import { fold, hasAll, words } from "../lib/text.js";
 import { clampInt } from "../lib/paging.js";
 import { ADD, READ, defineTool } from "../lib/tools.js";
@@ -30,7 +30,7 @@ function accountById(id) { const a = M.accounts.whose({ id: id })(); return a.le
 function mailboxByName(acc, name) { try { const mb = acc.mailboxes.byName(name); mb.name(); return mb; } catch (e) { return null; } }
 `;
 
-export const JXA_MAILBOXES = `${PRELUDE}
+export const JXA_MAILBOXES = defineScript("mail.mailboxes", `${PRELUDE}
 function run(argv) {
   if (!M.running()) return JSON.stringify({ running: false });
   const out = { running: true, accounts: [] };
@@ -49,10 +49,10 @@ function run(argv) {
     out.accounts.push(acc);
   }
   return JSON.stringify(out);
-}`;
+}`);
 
 // Messages received after o.since in the given mailboxes, headers only (bulk reads).
-export const JXA_SEARCH = `${PRELUDE}
+export const JXA_SEARCH = defineScript("mail.search", `${PRELUDE}
 function run(argv) {
   const o = JSON.parse(argv[0]);
   if (!M.running()) return JSON.stringify({ running: false });
@@ -76,9 +76,9 @@ function run(argv) {
     } catch (e) {}
   }
   return JSON.stringify({ running: true, messages: out });
-}`;
+}`);
 
-export const JXA_READ = `${PRELUDE}
+export const JXA_READ = defineScript("mail.read", `${PRELUDE}
 function run(argv) {
   const o = JSON.parse(argv[0]);
   if (!M.running()) return JSON.stringify({ running: false });
@@ -97,10 +97,10 @@ function run(argv) {
     body: g(() => m.content()) || "",
     attachments: atts.map((a) => ({ name: g(() => a.name()), size: g(() => a.fileSize()), type: g(() => a.mimeType()) })),
   } });
-}`;
+}`);
 
 // New draft in a visible window (hidden ones cannot be closed), saved, then closed.
-export const JXA_DRAFT_NEW = `${PRELUDE}
+export const JXA_DRAFT_NEW = defineScript("mail.draft_new", `${PRELUDE}
 function run(argv) {
   const o = JSON.parse(argv[0]);
   if (!M.running()) return JSON.stringify({ running: false });
@@ -114,11 +114,11 @@ function run(argv) {
   delay(0.5);
   msg.close({ saving: "no" });
   return JSON.stringify({ running: true, saved: true });
-}`;
+}`);
 
 // Reply draft: Mail's reply keeps In-Reply-To and References. It opens a window whatever is
 // asked, and ignores a body set before the window is ready, so wait for it first.
-export const JXA_DRAFT_REPLY = `${PRELUDE}
+export const JXA_DRAFT_REPLY = defineScript("mail.draft_reply", `${PRELUDE}
 function run(argv) {
   const o = JSON.parse(argv[0]);
   if (!M.running()) return JSON.stringify({ running: false });
@@ -136,13 +136,14 @@ function run(argv) {
   const subject = r.subject();
   r.close({ saving: "no" });
   return JSON.stringify({ running: true, found: true, saved: true, subject: subject });
-}`;
+}`);
 
 /** Every Mail script, for the "never sends" test. */
 export const MAIL_SCRIPTS = Object.freeze({ JXA_MAILBOXES, JXA_SEARCH, JXA_READ, JXA_DRAFT_NEW, JXA_DRAFT_REPLY });
+// (each is a registered script object; the "never sends" test reads their source)
 
-async function mail(name, script, input = {}, timeoutMs = 120000) {
-  const r = await jxa(`mail.${name}`, script, input, { app: APP, timeoutMs });
+async function mail(script, input = {}, timeoutMs = 120000) {
+  const r = await jxa(script, input, { app: APP, timeoutMs });
   if (r.running === false) throw new UserError(NOT_RUNNING);
   return r;
 }
@@ -166,7 +167,7 @@ const isTrashOrJunk = (path) => SKIP.test(leaf(path));
 let boxCache = null, boxAt = 0;
 async function accounts({ fresh = false } = {}) {
   if (!fresh && boxCache && Date.now() - boxAt < 60e3) return boxCache;
-  boxCache = (await mail("mailboxes", JXA_MAILBOXES)).accounts.map((a) => ({ ...a, mailboxes: a.mailboxes.map((m) => ({ path: m.name, count: m.count, unread: m.unread })) }));
+  boxCache = (await mail(JXA_MAILBOXES)).accounts.map((a) => ({ ...a, mailboxes: a.mailboxes.map((m) => ({ path: m.name, count: m.count, unread: m.unread })) }));
   boxAt = Date.now();
   return boxCache;
 }
@@ -259,7 +260,7 @@ async function mailSearch({ query, from, to, subject, mailbox, account, since, u
   const accs = await accounts();
   const boxes = targets(accs, { account, mailbox, include_trash });
   const accName = new Map(accs.map((a) => [a.id, a.name]));
-  const r = await mail("search", JXA_SEARCH, { since: start.getTime(), mailboxes: boxes.map(({ account: a, path }) => ({ account: a, path })) }, 180000);
+  const r = await mail(JXA_SEARCH, { since: start.getTime(), mailboxes: boxes.map(({ account: a, path }) => ({ account: a, path })) }, 180000);
   const mine = await myAddresses();
   const q = words(query), qf = words(from), qt = words(to), qs = words(subject);
   const wanted = new Set(boxes.map((b) => `${b.account}\n${b.path}`));
@@ -301,7 +302,7 @@ async function mailSearch({ query, from, to, subject, mailbox, account, since, u
 
 async function readOne(id) {
   const k = parseKey(id);
-  const r = await mail("read", JXA_READ, k);
+  const r = await mail(JXA_READ, k);
   if (!r.found) throw new UserError(`No message with id ${id}. It may have been moved or deleted; search again.`);
   return { k, m: r.message };
 }
@@ -358,7 +359,7 @@ async function mailCreateDraft({ to, cc, subject, body = "", reply_to_id, reply_
     if (to !== undefined || cc !== undefined || subject !== undefined) throw new UserError("A reply takes its recipients and subject from the original; pass only reply_to_id, reply_all, body and quote.");
     const { k, m } = await readOne(reply_to_id);
     const content = quote ? `${text}\n\n${quoteFor(m)}` : text;
-    const r = await mail("draft_reply", JXA_DRAFT_REPLY, { ...k, body: content, reply_all: !!reply_all }, 60000);
+    const r = await mail(JXA_DRAFT_REPLY, { ...k, body: content, reply_all: !!reply_all }, 60000);
     if (!r.found) throw new UserError(`No message with id ${reply_to_id}.`);
     return { saved_to: "Drafts", subject: r.subject, reply_to: reply_to_id, reply_all: !!reply_all, quoted: !!quote, sent: false, note: "Saved as a draft in Mail. Nothing was sent: the user reviews and sends it." };
   }
@@ -366,7 +367,7 @@ async function mailCreateDraft({ to, cc, subject, body = "", reply_to_id, reply_
   const subj = clean(subject ?? "").trim();
   if (!subj && !text) throw new UserError("A new draft needs a subject or a body.");
   if (from !== undefined) emailList(from, "from");
-  await mail("draft_new", JXA_DRAFT_NEW, { to: toList, cc: ccList, subject: subj, body: text, from: from ?? null }, 60000);
+  await mail(JXA_DRAFT_NEW, { to: toList, cc: ccList, subject: subj, body: text, from: from ?? null }, 60000);
   return { saved_to: "Drafts", subject: subj, to: toList, cc: ccList, sent: false, note: "Saved as a draft in Mail. Nothing was sent: the user reviews and sends it." };
 }
 

@@ -11,7 +11,7 @@ const rejectsUser = (p, re) => assert.rejects(p, (e) => e instanceof UserError &
 afterEach(() => setFakeFixtures(null));
 
 test("no Mail script can send", () => {
-  for (const [name, src] of Object.entries(MAIL_SCRIPTS)) {
+  for (const [name, { source: src }] of Object.entries(MAIL_SCRIPTS)) {
     assert.doesNotMatch(src, /\bsend\b|sendMail|\.send\s*\(/i, `${name} must never send`);
   }
   assert.ok(tools.every((t) => !/send/.test(t.name)));

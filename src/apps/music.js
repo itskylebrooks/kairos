@@ -3,13 +3,13 @@
 // not a play history.
 import { addDays, isBareDay, isoLocal, parseArgDate, startOfDay } from "../lib/dates.js";
 import { UserError } from "../lib/errors.js";
-import { jxa } from "../lib/osascript.js";
+import { defineScript, jxa } from "../lib/osascript.js";
 import { clampInt } from "../lib/paging.js";
 import { LIMITS, coverage, loadLog, status, timeline, topPlays } from "../lib/playlog.js";
 import { READ, defineTool } from "../lib/tools.js";
 
 // One static program; the mode and options arrive as JSON in argv[0].
-const JXA_MUSIC = `
+const JXA_MUSIC = defineScript("music", `
 function run(argv) {
   const o = JSON.parse(argv[0]);
   const Music = Application("Music");
@@ -64,12 +64,12 @@ function run(argv) {
     return JSON.stringify({ running: true, name: o.name, total: r.length, tracks: r.slice(0, o.limit) });
   }
   return JSON.stringify({ error: "unknown_mode" });
-}`;
+}`);
 
 const CLOSED = "Music is not running. Pass open_if_closed: true to open it.";
 
 async function music(opts) {
-  const r = await jxa("music", JXA_MUSIC, opts, { app: "Music", timeoutMs: 90000 });
+  const r = await jxa(JXA_MUSIC, opts, { app: "Music", timeoutMs: 90000 });
   if (r.running === false) return { running: false, message: CLOSED };
   if (r.error === "no_playlist") throw new UserError(`No playlist named "${opts.name}". Call music_playlists without a name to see them.`);
   if (r.error) throw new Error(`Music script: ${r.error}`);
