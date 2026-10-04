@@ -59,8 +59,8 @@ The GitHub repo (`itskylebrooks/kairos`) is public, and so is its full history. 
 
 | App | Read | Write |
 |---|---|---|
-| Calendar | yes | create, update, delete (update and delete by event id only, never by title) |
-| Reminders | yes | create, update, complete, delete (same id rule) |
+| Calendar | yes | create, update, delete (by event id only, never by title; repeating events refused for now) |
+| Reminders | yes | create, update, complete, delete (same id rule; flags read only) |
 | Contacts | yes | no |
 | Notes | yes | create, append (body replace only for notes without checklists or attachments) |
 | Mail | yes | drafts only, never send |
@@ -70,13 +70,19 @@ Out of scope: Messages (needs Full Disk Access), Safari history, Maps.
 
 ## Per app quirks
 
-**Calendar and Reminders.** Use the vendored EventKit CLI (`event`, from FradSer's `mcp-server-apple-events` 1.5.0), launched through the `event-disclaim` shim so macOS attributes permissions to `event`.
-- Commands: `calendar list|create|update|delete`, `reminders list|create|update|delete`, `reminders lists list|create|update|delete`. Writes are keyed by `--id`. `delete` prints plain text, not JSON. Pass `--no-shortcuts` for reminders writes. There is no "list calendars" command.
-- `calendar list --end` is exclusive: fetch one extra day, then filter exactly.
-- Dates come out like `2026-10-02 10:00:00 AM`; parse ISO, local `YYYY-MM-DD HH:mm(:ss)`, 12 hour and date only forms.
-- Reminders due at local midnight are whole day items. Compute overdue ourselves.
+**Calendar and Reminders.** Use the EventKit CLI (`event`, from FradSer's `mcp-server-apple-events` 1.5.0) in `vendor/eventkit/`, installed by `install.sh` pinned by package integrity and binary hashes, launched through the `event-disclaim` shim so macOS attributes permissions to `event`. macOS ties that permission to the binary's location, so a new install location asks again. Verified on macOS 27:
+- Commands: `calendar list|create|update|delete`, `reminders list|create|update|delete`, `reminders lists list|create`. `event --experimental-dump-help` prints every flag as JSON. Writes are keyed by `--id`. `delete` prints plain text, not JSON. Pass `--no-shortcuts` for reminders writes.
+- Always pass options as `--name=value`, so a value starting with "-" stays a value. The helper rejects empty values, so text fields cannot be cleared (Kairos says so up front).
+- `calendar list --end` is exclusive: fetch one extra day, then filter exactly. EventKit searches at most 4 years, so lookup by id walks 4 year windows.
+- All day ends: `create` wants the day after the last day, `update` wants the last day; output reports the last day. Kairos tools always use the last day, inclusive.
+- Dates come out as date only, ISO with `Z`, or `2026-10-02 10:00:00 AM`; parse all of them.
+- Repeating events: only an id can be passed, and EventKit then takes the first occurrence. `calendar update` has no span. Kairos refuses to update or delete repeating events.
+- No calendar ids in event output, only names; Calendar scripting gives no `calendarIdentifier` either (bulk read fails). Writes therefore require a unique, writable calendar name, from Calendar scripting (`writable` marks subscriptions and other people's calendars, which Kairos flags `from_others`).
+- Reminders: due must be `yyyy-MM-dd HH:mm:ss`. A day without a time is written as local midnight; Reminders shows it without a time (the helper also sets a start date one hour earlier, harmless). Midnight reads back as whole day. Compute overdue ourselves.
+- Setting the flag needs a third party shortcut ("AdvancedReminderEdit"); the helper then prints a notice before its JSON but has already written. Kairos never sets flags, and parses JSON after any notice.
+- Without permission the helper returns empty lists instead of an error. Zero reminder lists is reported as a permission problem.
 - FradSer's own MCP tools are buggy (single day reads empty, read by id fails, overdue filter empty). Don't copy their logic.
-- The binary also contains a Cloudflare D1 `sync` subcommand. Never call it. Before going public, replace the helper with our own small Swift EventKit binary.
+- The binary also contains a Cloudflare D1 `sync` subcommand. Never call it (the runner only allows `calendar` and `reminders`). Before going public, replace the helper with our own small Swift EventKit binary, which should also handle occurrences, clearing fields and flags.
 
 **Contacts.** One Apple Events round trip per property (bulk fetch), quit Contacts afterwards if it wasn't running, 5 minute cache. Birth year 1604 means "year unknown".
 
@@ -104,7 +110,7 @@ Out of scope: Messages (needs Full Disk Access), Safari history, Maps.
 
 ## Installer
 
-`install.sh`: private Node binary (`runtime/node-kairos`) with checksum check, the Kairos shortcuts (built and signed by `scripts/build-shortcuts.js`, one "Add Shortcut" click each, duplicates refused), a working self test, backup of the Claude config, one `kairos` entry with `KAIROS_APPS` and `KAIROS_WRITE`. `--dry-run` and `--config` allow testing without touching the real config. After updating, Claude must be quit (Cmd+Q) and reopened; the installer says so. The EventKit helper is added in Phase 2.
+`install.sh`: private Node binary (`runtime/node-kairos`) with checksum check, the pinned EventKit helper, the Kairos shortcuts (built and signed by `scripts/build-shortcuts.js`, one "Add Shortcut" click each, duplicates refused), a working self test, backup of the Claude config, one `kairos` entry with `KAIROS_APPS` and `KAIROS_WRITE`. Writing is asked per app; earlier answers are kept and only apps new since the last install are asked (`--write notes,calendar` or `all`/`none` skips the questions). `--dry-run` and `--config` allow testing without touching the real config. After updating, Claude must be quit (Cmd+Q) and reopened; the installer says so.
 - Updating a shortcut: delete it in the Shortcuts app, then rerun the installer (importing over an existing name creates a duplicate).
 
 The installer is generic: it knows nothing about the author's old `apple-mcp` setup. Retiring the old `apple-data` and `apple-events` entries is a one-off manual step on the author's Mac (with a config backup), done when Kairos covers their apps: `apple-events` after Phase 2, `apple-data` after Phase 3. Do not modify or uninstall `~/Code/apple-mcp` until then.
