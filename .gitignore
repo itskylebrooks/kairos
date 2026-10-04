@@ -11,3 +11,4 @@ node_modules/
 scratch/
 .env
 spike/notes-shortcuts/out/
+build/
