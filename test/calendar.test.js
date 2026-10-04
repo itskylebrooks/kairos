@@ -150,3 +150,33 @@ test("previews describe the change and refuse what the change would refuse, with
   await rejectsUser(preview("calendar_delete", { id: "CAL1:EV6" }), /repeating event/);
   assert.ok(fx.calls.eventkit.every((a) => a[1] === "list"), "previews only read");
 });
+
+test("read: a multi day all day event is still there on its last day", async () => {
+  setFakeFixtures(fixtures());
+  const r = await call("calendar_read", { date: "2030-01-18" });
+  assert.deepEqual(r.events.map((e) => e.title), ["Trip"]);
+  assert.deepEqual((await call("calendar_read", { date: "2030-01-19" })).events, []);
+});
+
+test("update: an all day move counts calendar days, also across a clock change", async () => {
+  const tz = process.env.TZ;
+  process.env.TZ = "Europe/Berlin"; // clocks go forward on 2030-03-31: that day has 23 hours
+  try {
+    const spring = { id: "CAL1:EV7", title: "Spring trip", calendar: "Kairos Test", startDate: "2030-03-30", endDate: "2030-04-01", isAllDay: true, recurrenceRules: [] };
+    const fx = fixtures({ eventkit: [{ prefix: ["calendar", "list"], output: [spring] }, { prefix: ["calendar", "update"], output: spring }] });
+    setFakeFixtures(fx);
+    await call("calendar_update", { id: "CAL1:EV7", start: "2030-05-10" });
+    assert.deepEqual(fx.calls.eventkit.at(-1), ["calendar", "update", "--id=CAL1:EV7", "--start=2030-05-10", "--end=2030-05-12", "--json"]);
+  } finally {
+    if (tz === undefined) delete process.env.TZ; else process.env.TZ = tz;
+  }
+});
+
+test("update and delete refuse an id that stands for several occurrences, whatever the rules field says", async () => {
+  const twice = { ...EV.timed, id: "CAL1:EV8", title: "Series without rules" };
+  const fx = fixtures({ eventkit: [{ prefix: ["calendar", "list"], output: [twice, { ...twice, startDate: "2030-01-22 12:00:00 PM", endDate: "2030-01-22 1:00:00 PM" }] }] });
+  setFakeFixtures(fx);
+  await rejectsUser(call("calendar_update", { id: "CAL1:EV8", title: "x" }), /repeating event/);
+  await rejectsUser(call("calendar_delete", { id: "CAL1:EV8" }), /repeating event/);
+  assert.ok(fx.calls.eventkit.every((a) => a[1] === "list"), "nothing but reads ran");
+});

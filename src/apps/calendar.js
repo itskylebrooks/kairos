@@ -137,7 +137,8 @@ async function calendarRead({ date, since, until, calendar, search, id, limit } 
   const needle = norm(search);
   let events = raw.map((e) => mapEvent(e, readOnly)).filter((e) => {
     if (!e._s) return false;
-    const end = e._e && e._e > e._s ? e._e : e.all_day ? addDays(startOfDay(e._s), 1) : new Date(e._s.getTime() + 1);
+    // An all day event's end is its last day, inclusive: it lasts until that day is over.
+    const end = e.all_day ? addDays(startOfDay(e._e && e._e > e._s ? e._e : e._s), 1) : e._e && e._e > e._s ? e._e : new Date(e._s.getTime() + 1);
     return e._s < to && end > from;
   });
   if (needle) events = events.filter((e) => norm(`${e.title} ${e.location} ${e.notes}`).includes(needle));
@@ -270,8 +271,9 @@ async function calendarCreate({ title, start, end, calendar, location, notes } =
   };
 }
 
-function refuseRecurring(raw, what) {
-  if (raw.recurrenceRules && raw.recurrenceRules.length) {
+function refuseRecurring(raw, what, occurrences = 1) {
+  // Several events under one id are occurrences of a series, whatever the rules field says.
+  if ((raw.recurrenceRules && raw.recurrenceRules.length) || occurrences > 1) {
     throw new UserError(`This is a repeating event. Kairos cannot ${what} a single occurrence safely (the EventKit helper would change the first one), so please ${what} it in the Calendar app.`);
   }
 }
@@ -288,8 +290,8 @@ function showTimes(times) {
 
 /** Everything calendar_update will do, checked, without writing. */
 async function planUpdate({ id, title, start, end, location, notes } = /** @type {any} */ ({})) {
-  const { raw } = await findEvent(id);
-  refuseRecurring(raw, "change");
+  const { raw, occurrences } = await findEvent(id);
+  refuseRecurring(raw, "change", occurrences);
   const readOnly = await readOnlyNames();
   if (readOnly && readOnly.has(raw.calendar)) throw new UserError(`"${raw.title}" is in the read only calendar "${raw.calendar}".`);
   const before = strip(mapEvent(raw, readOnly));
@@ -309,7 +311,9 @@ async function planUpdate({ id, title, start, end, location, notes } = /** @type
     if (e === undefined && cur._s && cur._e) {
       // Moving the start keeps the duration.
       const ns = parseArgDate(s, "start");
-      e = cur.all_day ? localDay(new Date(ns.getTime() + (startOfDay(cur._e).getTime() - startOfDay(cur._s).getTime()))) : ekStamp(new Date(ns.getTime() + (cur._e.getTime() - cur._s.getTime())));
+      // All day: count calendar days, not hours (a day has 23 or 25 hours when the clocks change).
+      const days = Math.round((startOfDay(cur._e).getTime() - startOfDay(cur._s).getTime()) / 86400e3);
+      e = cur.all_day ? localDay(addDays(ns, days)) : ekStamp(new Date(ns.getTime() + (cur._e.getTime() - cur._s.getTime())));
       if (isBareDay(s) !== cur.all_day) e = undefined;
     }
     const times = eventTimes(s, e, "update");
@@ -349,8 +353,8 @@ async function previewUpdate(a = /** @type {any} */ ({})) {
 }
 
 async function planDelete({ id } = /** @type {any} */ ({})) {
-  const { raw } = await findEvent(id);
-  refuseRecurring(raw, "delete");
+  const { raw, occurrences } = await findEvent(id);
+  refuseRecurring(raw, "delete", occurrences);
   const readOnly = await readOnlyNames();
   if (readOnly && readOnly.has(raw.calendar)) throw new UserError(`"${raw.title}" is in the read only calendar "${raw.calendar}".`);
   return { before: strip(mapEvent(raw, readOnly)), raw };
