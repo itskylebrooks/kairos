@@ -55,5 +55,13 @@ export function parseArgDate(v, name) {
   return p.date;
 }
 
+/** Local time with offset and seconds, e.g. "2030-01-02T10:00:05+01:00". @param {Date} d */
+export function isoLocal(d) {
+  const off = -d.getTimezoneOffset();
+  const sign = off >= 0 ? "+" : "-";
+  const a = Math.abs(off);
+  return `${localDay(d)}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}${sign}${pad2(Math.floor(a / 60))}:${pad2(a % 60)}`;
+}
+
 /** True for a bare "YYYY-MM-DD". @param {unknown} v */
 export const isBareDay = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "").trim());

@@ -35,10 +35,12 @@ test("VERSION matches package.json", () => {
   assert.equal(VERSION, JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version);
 });
 
-test("the real tool list is empty for now", async () => {
-  assert.equal(ALL_TOOLS.length, 0);
-  const res = await createServer({ config: cfg({}) }).handle({ jsonrpc: "2.0", id: 1, method: "tools/list" });
-  assert.deepEqual(res, { jsonrpc: "2.0", id: 1, result: { tools: [] } });
+test("by default only read tools are listed; writes need KAIROS_WRITE", async () => {
+  const names = async (env) => (await createServer({ config: cfg(env) }).handle({ jsonrpc: "2.0", id: 1, method: "tools/list" })).result.tools.map((t) => t.name);
+  assert.deepEqual(await names({}), ["notes_folders", "notes_list", "notes_search", "notes_read"]);
+  assert.deepEqual(await names({ KAIROS_WRITE: "notes" }), ["notes_folders", "notes_list", "notes_search", "notes_read", "notes_create", "notes_append", "notes_replace"]);
+  assert.deepEqual(await names({ KAIROS_APPS: "mail" }), []);
+  assert.ok(ALL_TOOLS.every((t) => t.annotations.openWorldHint === false));
 });
 
 test("initialize accepts a supported protocol version", async () => {
