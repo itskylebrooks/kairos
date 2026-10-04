@@ -14,9 +14,11 @@
 import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync, writeSync } from "node:fs";
 import { join } from "node:path";
 import { addDays, isoLocal, localDay, startOfDay } from "./dates.js";
-import { dataDir } from "./paths.js";
+import { agentsDir, dataDir } from "./paths.js";
 
 export const VERSION = 1;
+/** launchd label of the opt-in background job (src/cli/music-log.js). */
+export const AGENT_LABEL = "kairos.music-log";
 /** Extra snapshots (when Music is already open) at most this often. */
 export const INTERVAL_MS = 3 * 3600e3;
 /** Snapshots further apart than this leave a gap in the history. */
@@ -318,4 +320,21 @@ export async function runSnapshot({ now = new Date(), force = false, readLibrary
   } finally {
     unlock();
   }
+}
+
+/** What has been logged so far, and whether the background job is installed. */
+export function status() {
+  const l = loadLog();
+  return {
+    agent_installed: existsSync(join(agentsDir(), `${AGENT_LABEL}.plist`)),
+    data: musicDir(),
+    snapshots: l.times.length,
+    first: l.times[0] ? isoLocal(new Date(l.times[0])) : null,
+    last: l.times.length ? isoLocal(new Date(l.times.at(-1))) : null,
+    last_check: l.state?.last_check ? { at: isoLocal(new Date(l.state.last_check.t)), result: l.state.last_check.reason } : null,
+    tracks_known: Object.keys(l.catalog.tracks).length,
+    plays_logged: l.events.reduce((s, e) => s + e.n, 0),
+    resets: l.anomalies.length,
+    damaged_lines: l.damaged,
+  };
 }
