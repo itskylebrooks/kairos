@@ -76,7 +76,15 @@ export function createServer({ tools = ALL_TOOLS, config = readConfig() } = {}) 
       if (!tool.annotations.readOnlyHint && !previewed && isPlainObject(data)) data = journal(tool, name, data);
       // Fields starting with "_" are internal (raw helper output, journals) and never leave Kairos.
       if (isPlainObject(data)) data = Object.fromEntries(Object.entries(data).filter(([k]) => !k.startsWith("_")));
-      const structured = processResult(isPlainObject(data) ? data : { result: data ?? null });
+      const wrote = !tool.annotations.readOnlyHint && !previewed;
+      let structured;
+      try {
+        structured = processResult(isPlainObject(data) ? data : { result: data ?? null });
+      } catch (e) {
+        // The change is already made: an error here would invite a repeat, and a second write.
+        if (!wrote || !(e instanceof UserError)) throw e;
+        structured = { done: true, ...(isPlainObject(data) && data.activity_id ? { activity_id: data.activity_id } : {}), message: "The change was made, but its result was too large to return. Do not repeat the call; read the item again to see it." };
+      }
       return ok(id, { content: [{ type: "text", text: JSON.stringify(structured) }], structuredContent: structured });
     } catch (e) {
       if (!(e instanceof UserError)) log(`${name} failed:`, e);

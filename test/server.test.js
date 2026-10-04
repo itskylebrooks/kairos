@@ -189,3 +189,23 @@ test("a preview that finds a problem refuses before any token is issued", async 
   assert.equal(r.isError, true);
   assert.equal(r.content[0].text, "This note is locked.");
 });
+
+test("a finished write whose result is too large is reported as done, not as a failure", async () => {
+  const big = defineTool({
+    name: "notes_big_write", app: "notes", title: "Big write", description: "Writes and returns too much.",
+    inputSchema: { type: "object", properties: {} }, annotations: ADD, handler: () => ({ text: "x".repeat(150_000) }),
+  });
+  const bigRead = defineTool({
+    name: "notes_big_read", app: "notes", title: "Big read", description: "Returns too much.",
+    inputSchema: { type: "object", properties: {} }, annotations: READ, handler: () => ({ text: "x".repeat(150_000) }),
+  });
+  const s = createServer({ tools: [big, bigRead], config: cfg({ KAIROS_APPS: "notes", KAIROS_WRITE: "notes" }) });
+  const w = await s.handle({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "notes_big_write", arguments: {} } });
+  assert.equal(w.result.isError, undefined);
+  assert.equal(w.result.structuredContent.done, true);
+  assert.match(w.result.structuredContent.activity_id, /^act-/);
+  assert.match(w.result.structuredContent.message, /Do not repeat the call/);
+  const r = await s.handle({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "notes_big_read", arguments: {} } });
+  assert.equal(r.result.isError, true);
+  assert.match(r.result.content[0].text, /too large/);
+});
