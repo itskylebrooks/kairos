@@ -57,3 +57,12 @@ test("validateArgs", () => {
   bad([], /must be an object/);
   assert.deepEqual(validateArgs({ type: "object", properties: {} }, undefined), {});
 });
+
+test("validateArgs: names inherited from Object.prototype are not known arguments", () => {
+  const schema = { type: "object", additionalProperties: false, required: ["id"], properties: { id: { type: "string" } } };
+  const bad = (args, re) => assert.throws(() => validateArgs(schema, args), (e) => e instanceof UserError && re.test(e.message));
+  bad({ id: "x", constructor: "y" }, /Unknown argument "constructor"/);
+  bad({ id: "x", toString: "y" }, /Unknown argument "toString"/);
+  bad(JSON.parse('{"id":"x","__proto__":{"a":1}}'), /Unknown argument "__proto__"/);
+  bad(Object.create({ id: "inherited" }), /Missing required argument "id"/);
+});

@@ -98,10 +98,11 @@ export function validateArgs(schema, args) {
   const a = /** @type {Record<string, unknown>} */ (args);
   const props = schema.properties || {};
   for (const k of schema.required || []) {
-    if (a[k] === undefined) throw new UserError(`Missing required argument "${k}".`);
+    if (!Object.hasOwn(a, k) || a[k] === undefined) throw new UserError(`Missing required argument "${k}".`);
   }
   for (const [k, v] of Object.entries(a)) {
-    const p = props[k];
+    // Own properties only: "constructor" or "__proto__" must not pass as a known argument.
+    const p = Object.hasOwn(props, k) ? props[k] : undefined;
     if (!p) {
       if (schema.additionalProperties === false) throw new UserError(`Unknown argument "${k}".`);
       continue;
