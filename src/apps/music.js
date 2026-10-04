@@ -39,7 +39,7 @@ function run(argv) {
     // whose({ _or: [...] }) fails with "Can't convert types" on macOS 27: read everything
     // in bulk (fast) and match here, every word, accents ignored.
     // (Backslashes are doubled: this source sits inside a JS template string.)
-    const fold = (s) => String(s || "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+    const fold = (s) => String(s || "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/\\u00df|\\u1e9e/g, "ss").toLowerCase();
     const words = fold(o.query).split(/\\s+/).filter(Boolean);
     const r = rows(lib.tracks).filter((x) => { const h = fold([x.name, x.artist, x.album].join(" | ")); return words.every((w) => h.includes(w)); });
     return JSON.stringify({ running: true, total: r.length, tracks: r.slice(0, o.limit) });

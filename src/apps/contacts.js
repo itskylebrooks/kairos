@@ -3,6 +3,7 @@
 // quit again if this call had to start it. Results are cached for 5 minutes.
 import { jxa } from "../lib/osascript.js";
 import { clampInt, page } from "../lib/paging.js";
+import { fold } from "../lib/text.js";
 import { READ, defineTool } from "../lib/tools.js";
 
 const JXA_CONTACTS = `
@@ -70,7 +71,6 @@ async function allContacts() {
   return cache;
 }
 
-const fold = (s) => String(s ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 const digits = (s) => String(s ?? "").replace(/\D/g, "");
 
 /** Every query word in some field, or the trailing digits of a phone number. */

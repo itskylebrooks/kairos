@@ -15,6 +15,7 @@ import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, re
 import { join } from "node:path";
 import { addDays, isoLocal, localDay, startOfDay } from "./dates.js";
 import { agentsDir, dataDir } from "./paths.js";
+import { fold } from "./text.js";
 
 export const VERSION = 1;
 /** launchd label of the opt-in background job (src/cli/music-log.js). */
@@ -132,7 +133,6 @@ export function placeEvent(ev) {
   return { at: ev.to, n: ev.n, uncertain: sameDay(ev.from, ev.to) ? 0 : ev.n, late: false };
 }
 
-const fold = (s) => String(s ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
 /** Whether a catalog track matches every word of the query (current or earlier names). */
 export function trackMatches(c, query) {

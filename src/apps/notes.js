@@ -10,6 +10,7 @@ import { jxa } from "../lib/osascript.js";
 import { dataDir } from "../lib/paths.js";
 import { clampInt } from "../lib/paging.js";
 import { runShortcut } from "../lib/shortcuts.js";
+import { fold } from "../lib/text.js";
 import { ADD, READ, UPDATE, defineTool } from "../lib/tools.js";
 import { escapeInline, noteToMarkdown, parseBridgeItems } from "../lib/notes-html.js";
 import { SHORTCUT_APPEND, SHORTCUT_CREATE, SHORTCUT_READ } from "./notes-shortcuts.js";
@@ -193,7 +194,6 @@ function summary(n, byId) {
 const withSharedNote = (out, notes) => (notes.some((n) => n.shared) ? { ...out, note: SHARED_NOTE } : out);
 
 // Case and accent insensitive matching.
-const fold = (s) => String(s ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
 async function getNote(id, { body = false } = {}) {
   if (typeof id !== "string" || !id.startsWith("x-coredata://") || !/\/ICNote\//.test(id)) {
