@@ -1,0 +1,16 @@
+{
+  "osascript": {
+    "example.echo": [
+      { "match": { "mode": "fail" }, "error": "Example failure" },
+      { "match": { "mode": "hello" }, "output": { "greeting": "Hello, Ada Example" } }
+    ]
+  },
+  "eventkit": [
+    {
+      "args": ["calendar", "list", "--start", "2030-01-01", "--end", "2030-01-02", "--json"],
+      "output": [
+        { "id": "EXAMPLE-EVENT-1", "title": "Kairos Test event", "calendar": "Kairos Test", "startDate": "2030-01-01 10:00:00 AM", "endDate": "2030-01-01 11:00:00 AM", "isAllDay": false }
+      ]
+    }
+  ]
+}
