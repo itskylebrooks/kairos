@@ -9,6 +9,11 @@
   },
   "scripts": {
     "start": "node src/server.js",
-    "test": "node --test --import ./test/setup.js"
+    "test": "node --test --import ./test/setup.js",
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "typescript": "5.9.3"
   }
 }

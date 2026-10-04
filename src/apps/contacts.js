@@ -85,7 +85,7 @@ export function contactMatches(c, query) {
   return d.length >= 6 && c.phones.some((p) => digits(p.number).endsWith(d.slice(-9)));
 }
 
-async function contactsSearch({ query, limit, offset } = {}) {
+async function contactsSearch({ query, limit, offset } = /** @type {any} */ ({})) {
   const all = await allContacts();
   const p = page(all.filter((c) => contactMatches(c, query || "")), limit, offset, 25, 500);
   return { total: p.total, offset: p.offset, limit: p.limit, has_more: p.has_more, contacts: p.items };
@@ -118,7 +118,7 @@ export function upcomingBirthdays(contacts, window, now = new Date()) {
   return out.sort((a, b) => a.days_until - b.days_until || a.name.localeCompare(b.name));
 }
 
-async function contactsBirthdays({ days } = {}) {
+async function contactsBirthdays({ days } = /** @type {any} */ ({})) {
   const window = clampInt(days, 0, 366, 30);
   return { window_days: window, birthdays: upcomingBirthdays(await allContacts(), window) };
 }

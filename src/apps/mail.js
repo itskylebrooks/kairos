@@ -165,7 +165,7 @@ const leaf = (path) => path.split("/").pop();
 const isTrashOrJunk = (path) => SKIP.test(leaf(path));
 
 let boxCache = null, boxAt = 0;
-async function accounts({ fresh = false } = {}) {
+async function accounts({ fresh = false } = /** @type {any} */ ({})) {
   if (!fresh && boxCache && Date.now() - boxAt < 60e3) return boxCache;
   boxCache = (await mail(JXA_MAILBOXES)).accounts.map((a) => ({ ...a, mailboxes: a.mailboxes.map((m) => ({ path: m.name, count: m.count, unread: m.unread })) }));
   boxAt = Date.now();
@@ -234,7 +234,7 @@ async function mailMailboxes() {
   };
 }
 
-async function mailUnread({ mailbox, account } = {}) {
+async function mailUnread({ mailbox, account } = /** @type {any} */ ({})) {
   const accs = await accounts({ fresh: true });
   const rows = [];
   for (const a of accs) {
@@ -252,7 +252,7 @@ async function myAddresses() {
   return new Set((await accounts()).flatMap((a) => a.addresses.map((x) => x.toLowerCase())));
 }
 
-async function mailSearch({ query, from, to, subject, mailbox, account, since, until, unread_only, flagged_only, include_trash, limit } = {}) {
+async function mailSearch({ query, from, to, subject, mailbox, account, since, until, unread_only, flagged_only, include_trash, limit } = /** @type {any} */ ({})) {
   const today = startOfDay(new Date());
   const end = until ? (isBareDay(until) ? addDays(parseArgDate(until, "until"), 1) : parseArgDate(until, "until")) : null;
   const start = since ? parseArgDate(since, "since") : addDays(end ?? addDays(today, 1), -30);
@@ -307,7 +307,7 @@ async function readOne(id) {
   return { k, m: r.message };
 }
 
-async function mailRead({ id, max_chars, offset, include_quoted = false } = {}) {
+async function mailRead({ id, max_chars, offset, include_quoted = false } = /** @type {any} */ ({})) {
   const { k, m } = await readOne(id);
   const mine = await myAddresses();
   const full = clean(m.body);
@@ -352,7 +352,7 @@ export function quoteFor(m) {
   return `On ${when}, ${clean(m.from)} wrote:\n${text.split("\n").map((l) => `> ${l}`).join("\n")}`;
 }
 
-async function mailCreateDraft({ to, cc, subject, body = "", reply_to_id, reply_all = false, quote = true, from } = {}) {
+async function mailCreateDraft({ to, cc, subject, body = "", reply_to_id, reply_all = false, quote = true, from } = /** @type {any} */ ({})) {
   if (typeof body !== "string") throw new UserError("body must be text.");
   const text = clean(body).replace(/\n+$/, "");
   if (reply_to_id) {

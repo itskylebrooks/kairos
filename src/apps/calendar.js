@@ -37,7 +37,7 @@ function run(argv) {
 let calCache = null, calAt = 0;
 
 /** @returns {Promise<{ id?: string, name: string, writable: boolean }[]>} */
-async function calendars({ fresh = false } = {}) {
+async function calendars({ fresh = false } = /** @type {any} */ ({})) {
   if (!fresh && calCache && Date.now() - calAt < 5 * 60e3) return calCache;
   const r = await jxa(JXA_CALENDARS, {}, { app: "Calendar", timeoutMs: 60000 });
   calCache = r.names.map((name, i) => ({ name, writable: !!r.writable[i], ...(r.ids[i] ? { id: r.ids[i] } : {}) }));
@@ -117,7 +117,7 @@ async function calendarCalendars() {
   return { count: all.length, calendars: all.map((c) => ({ ...c, ...(c.writable ? {} : { from_others: true }) })) };
 }
 
-async function calendarRead({ date, since, until, calendar, search, id, limit } = {}) {
+async function calendarRead({ date, since, until, calendar, search, id, limit } = /** @type {any} */ ({})) {
   const readOnly = await readOnlyNames();
   if (id) {
     const { raw } = await findEvent(id);
@@ -251,7 +251,7 @@ registerUndo("calendar", "delete", {
   },
 });
 
-async function calendarCreate({ title, start, end, calendar, location, notes } = {}) {
+async function calendarCreate({ title, start, end, calendar, location, notes } = /** @type {any} */ ({})) {
   const t = String(title ?? "").trim();
   if (!t) throw new UserError("title is required.");
   const times = eventTimes(start, end, "create");
@@ -287,7 +287,7 @@ function showTimes(times) {
 }
 
 /** Everything calendar_update will do, checked, without writing. */
-async function planUpdate({ id, title, start, end, location, notes } = {}) {
+async function planUpdate({ id, title, start, end, location, notes } = /** @type {any} */ ({})) {
   const { raw } = await findEvent(id);
   refuseRecurring(raw, "change");
   const readOnly = await readOnlyNames();
@@ -309,7 +309,7 @@ async function planUpdate({ id, title, start, end, location, notes } = {}) {
     if (e === undefined && cur._s && cur._e) {
       // Moving the start keeps the duration.
       const ns = parseArgDate(s, "start");
-      e = cur.all_day ? localDay(new Date(ns.getTime() + (startOfDay(cur._e) - startOfDay(cur._s)))) : ekStamp(new Date(ns.getTime() + (cur._e - cur._s)));
+      e = cur.all_day ? localDay(new Date(ns.getTime() + (startOfDay(cur._e).getTime() - startOfDay(cur._s).getTime()))) : ekStamp(new Date(ns.getTime() + (cur._e.getTime() - cur._s.getTime())));
       if (isBareDay(s) !== cur.all_day) e = undefined;
     }
     const times = eventTimes(s, e, "update");
@@ -326,7 +326,7 @@ async function planUpdate({ id, title, start, end, location, notes } = {}) {
   return { before, readOnly, args, changes, raw: rawBefore };
 }
 
-async function calendarUpdate(a = {}) {
+async function calendarUpdate(a = /** @type {any} */ ({})) {
   const p = await planUpdate(a);
   const raw = await eventkit(p.args);
   const before = eventState(p.raw), after = eventState(raw);
@@ -343,12 +343,12 @@ async function calendarUpdate(a = {}) {
   };
 }
 
-async function previewUpdate(a = {}) {
+async function previewUpdate(a = /** @type {any} */ ({})) {
   const p = await planUpdate(a);
   return { summary: `Change ${describe(p.before)}: ${p.changes.map((c) => `${c.field} from ${JSON.stringify(c.from)} to ${JSON.stringify(c.to)}`).join("; ")}.`, changes: p.changes, event: p.before };
 }
 
-async function planDelete({ id } = {}) {
+async function planDelete({ id } = /** @type {any} */ ({})) {
   const { raw } = await findEvent(id);
   refuseRecurring(raw, "delete");
   const readOnly = await readOnlyNames();
@@ -356,7 +356,7 @@ async function planDelete({ id } = {}) {
   return { before: strip(mapEvent(raw, readOnly)), raw };
 }
 
-async function calendarDelete({ id } = {}) {
+async function calendarDelete({ id } = /** @type {any} */ ({})) {
   const p = await planDelete({ id });
   await eventkit(["calendar", "delete", `--id=${id}`], { json: false });
   const before = eventState(p.raw);
@@ -366,7 +366,7 @@ async function calendarDelete({ id } = {}) {
   };
 }
 
-async function previewDelete({ id } = {}) {
+async function previewDelete({ id } = /** @type {any} */ ({})) {
   const p = await planDelete({ id });
   return { summary: `Delete ${describe(p.before)}.`, event: p.before };
 }

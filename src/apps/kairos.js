@@ -19,7 +19,7 @@ function whyNot(e) {
   return null;
 }
 
-async function kairosActivity({ since, until, app, limit } = {}) {
+async function kairosActivity({ since, until, app, limit } = /** @type {any} */ ({})) {
   const today = startOfDay(new Date());
   const to = until ? (isBareDay(until) ? addDays(parseArgDate(until, "until"), 1) : parseArgDate(until, "until")) : addDays(today, 1);
   const from = since ? parseArgDate(since, "since") : addDays(today, -6);
@@ -62,13 +62,13 @@ function undoTarget(id, ctx) {
 /** Nested internal fields (raw helper output, journals) never leave Kairos. */
 const publicOnly = (v) => (v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).filter(([k]) => !k.startsWith("_")).map(([k, x]) => [k, publicOnly(x)])) : v);
 
-async function previewUndo({ id } = {}, ctx) {
+async function previewUndo({ id } = /** @type {any} */ ({}), ctx) {
   const e = undoTarget(id, ctx);
   const p = await undoerFor(e).preview(e);
   return { summary: `Undo "${e.summary}" (${isoLocal(new Date(e.t)).slice(0, 16).replace("T", " ")}): ${p.summary}`, change: { id: e.id, app: e.app, action: e.action } };
 }
 
-async function kairosUndo({ id } = {}, ctx) {
+async function kairosUndo({ id } = /** @type {any} */ ({}), ctx) {
   const e = undoTarget(id, ctx);
   const { result, journal } = await undoerFor(e).run(e);
   return {

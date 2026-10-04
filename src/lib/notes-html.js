@@ -98,7 +98,7 @@ function findHeading(n) {
 /**
  * @typedef {{ type: "line", text: string }
  *   | { type: "heading", level: number, text: string }
- *   | { type: "item", kind: "dash"|"ul"|"ol", depth: number, index: number, text: string, plain: string }
+ *   | { type: "item", kind: "dash"|"ul"|"ol", depth: number, index: number, text: string, plain: string, bridge?: BridgeItem }
  *   | { type: "table", rows: string[][] }
  *   | { type: "code", text: string }} Block
  */

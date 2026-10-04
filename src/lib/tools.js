@@ -19,7 +19,7 @@ export const DELETE = Object.freeze({ readOnlyHint: false, destructiveHint: true
 /**
  * @typedef {object} Tool
  * @property {string} name  snake_case, prefixed with the app, e.g. "notes_list"
- * @property {App} app
+ * @property {App | "kairos"} app
  * @property {string} title
  * @property {string} description
  * @property {object} inputSchema
@@ -43,7 +43,7 @@ const HINTS = ["readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHi
 export function defineTool(t) {
   const bad = (why) => { throw new Error(`Tool ${t && t.name}: ${why}`); };
   if (!t || typeof t.name !== "string" || !/^[a-z]+(_[a-z0-9]+)+$/.test(t.name)) bad("name must be snake_case like notes_list");
-  if (!APPS.includes(t.app) && t.app !== CORE_APP) bad(`unknown app "${t.app}"`);
+  if (t.app !== CORE_APP && !APPS.includes(t.app)) bad(`unknown app "${t.app}"`);
   if (!t.name.startsWith(t.app + "_")) bad(`name must start with "${t.app}_"`);
   if (!t.title || typeof t.title !== "string") bad("title is required");
   if (!t.description || typeof t.description !== "string") bad("description is required");

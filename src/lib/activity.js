@@ -17,7 +17,7 @@ export const KEEP_DAYS = 90;
  * @property {string} summary  one sentence, as a person would say it
  * @property {any} [before]   machine readable state before (null for creations)
  * @property {any} [after]    machine readable state after (null for deletions)
- * @property {{ possible: boolean, reason?: string }} undo
+ * @property {{ possible: boolean, reason?: string }} [undo]  set by the server for undo entries
  * @property {string} [undo_of]  for undo entries: the entry that was undone
  */
 

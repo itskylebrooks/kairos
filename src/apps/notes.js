@@ -139,7 +139,7 @@ const notesJxa = (script, input, timeoutMs) => jxa(script, input, { app: APP, ti
 let folderCache = null, folderCacheAt = 0;
 
 /** All folders with account, path and trash flag. Cached for 60 s. */
-async function folderTree({ fresh = false } = {}) {
+async function folderTree({ fresh = false } = /** @type {any} */ ({})) {
   if (!fresh && folderCache && Date.now() - folderCacheAt < 60e3) return folderCache;
   const raw = await notesJxa(JXA_FOLDERS, {}, 120000);
   const accounts = new Map(raw.accounts.map((a) => [a.id, a]));
@@ -207,7 +207,7 @@ function summary(n, byId) {
 
 // Case and accent insensitive matching.
 
-async function getNote(id, { body = false } = {}) {
+async function getNote(id, { body = false } = /** @type {any} */ ({})) {
   if (typeof id !== "string" || !id.startsWith("x-coredata://") || !/\/ICNote\//.test(id)) {
     throw new UserError(`"${id}" is not a note id. Note ids look like x-coredata://.../ICNote/p123; get them from notes_list or notes_search.`);
   }
@@ -356,7 +356,7 @@ function dateFilter(items, since, until) {
   return items.filter((n) => (!from || new Date(n.modified) >= from) && (!to || new Date(n.modified) <= to));
 }
 
-async function notesList({ folder, modified_since, modified_until, include_deleted, limit, offset } = {}) {
+async function notesList({ folder, modified_since, modified_until, include_deleted, limit, offset } = /** @type {any} */ ({})) {
   const { raw, byId } = await scan({ folder, include_deleted, text: "preview" });
   const items = dateFilter(raw, modified_since, modified_until).sort((a, b) => String(b.modified).localeCompare(String(a.modified)));
   const l = clampInt(limit, 1, 500, 50), o = clampInt(offset, 0, 1e9, 0);
@@ -370,7 +370,7 @@ function previewOf(text, title) {
   return t.replace(/\s+/g, " ").trim().slice(0, 160) || null;
 }
 
-async function notesSearch({ query, folder, include_deleted, limit, offset } = {}) {
+async function notesSearch({ query, folder, include_deleted, limit, offset } = /** @type {any} */ ({})) {
   const words = fold(query).split(/\s+/).filter(Boolean);
   if (!words.length) throw new UserError("query must not be empty.");
   const { raw, byId } = await scan({ folder, include_deleted, text: "full" });
@@ -396,7 +396,7 @@ function snippetOf(text, word) {
   return `${a > 0 ? "…" : ""}${src.slice(a, b).replace(/\s+/g, " ").trim()}${b < src.length ? "…" : ""}`;
 }
 
-async function notesRead({ id, max_chars, offset } = {}) {
+async function notesRead({ id, max_chars, offset } = /** @type {any} */ ({})) {
   const n = await getNote(id, { body: true });
   const { byId } = await folderTree();
   const base = { ...summary(n, byId), attachments: (n.locked ? n.attachments : realAttachments(n)).map((a) => a.name || "(unnamed attachment)") };
@@ -404,13 +404,14 @@ async function notesRead({ id, max_chars, offset } = {}) {
   const md = await readMarkdown(n);
   // Long notes come in parts, so one note cannot flood the context.
   const max = clampInt(max_chars, 200, 100000, 20000), off = clampInt(offset, 0, 1e9, 0);
+  /** @type {Record<string, any>} */
   const out = { ...base, markdown: md.markdown.slice(off, off + max), markdown_chars: md.markdown.length, checklists: md.checklists };
   if (off + max < md.markdown.length) Object.assign(out, { truncated: true, next_offset: off + max });
   if (md.checklist_note) out.checklist_note = md.checklist_note;
   return out;
 }
 
-async function notesCreate({ title, markdown = "", folder, allow_shared } = {}) {
+async function notesCreate({ title, markdown = "", folder, allow_shared } = /** @type {any} */ ({})) {
   const t = checkTitle(title);
   let body = checkMarkdownInput(markdown);
   // The title is written separately; drop a leading "# <title>" the model may have repeated.
@@ -453,7 +454,7 @@ async function notesCreate({ title, markdown = "", folder, allow_shared } = {}) 
 }
 
 /** Checks shared by append and replace: the note exists, is live, unlocked, uniquely named. */
-async function writableNote(id, { body = false } = {}) {
+async function writableNote(id, { body = false } = /** @type {any} */ ({})) {
   const n = await getNote(id, { body });
   const { byId } = await folderTree();
   if (byId.get(n.folder)?.deleted) throw new UserError("This note is in Recently Deleted. Restore it in Notes first.");
@@ -472,7 +473,7 @@ async function appendGuarded(name, markdown) {
   if (m[1] !== "1") throw new UserError(`Nothing was written: Shortcuts found ${m[1]} notes titled "${name}", and Kairos only writes when exactly one matches.`);
 }
 
-async function notesAppend({ id, markdown, allow_shared } = {}) {
+async function notesAppend({ id, markdown, allow_shared } = /** @type {any} */ ({})) {
   const md = checkMarkdownInput(markdown).replace(/^\n+|\n+$/g, "");
   if (!md.trim()) throw new UserError("markdown must not be empty.");
   const n = await writableNote(id, { body: true });
@@ -545,7 +546,7 @@ for (const action of ["append", "replace"]) {
 }
 
 /** Every check notes_replace makes, without writing. */
-async function planReplace({ id, markdown, title, expected_modified } = {}) {
+async function planReplace({ id, markdown, title, expected_modified } = /** @type {any} */ ({})) {
   const body = checkMarkdownInput(markdown).replace(/^\n+|\n+$/g, "");
   const n = await writableNote(id, { body: true });
   const expected = Date.parse(String(expected_modified ?? ""));
@@ -563,7 +564,7 @@ async function planReplace({ id, markdown, title, expected_modified } = {}) {
   return { n, body, newTitle };
 }
 
-async function previewReplace(a = {}) {
+async function previewReplace(a = /** @type {any} */ ({})) {
   const { n, body, newTitle } = await planReplace(a);
   const { byId } = await folderTree();
   const where = byId.get(n.folder)?.path ?? "Notes";
@@ -575,7 +576,7 @@ async function previewReplace(a = {}) {
   };
 }
 
-async function notesReplace(a = {}) {
+async function notesReplace(a = /** @type {any} */ ({})) {
   const { id } = a;
   const { n, body, newTitle } = await planReplace(a);
 

@@ -9,6 +9,7 @@ import { run } from "./run.js";
 
 const SHORTCUTS = "/usr/bin/shortcuts";
 
+/** @type {Promise<unknown>} */
 let queue = Promise.resolve();
 
 /**

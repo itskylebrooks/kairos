@@ -28,7 +28,7 @@ export function mapReminder(r, now = new Date()) {
     due: p ? `${WEEKDAYS[p.date.getDay()]} ${wholeDay ? localDay(p.date) : localStamp(p.date)}` : null,
     all_day: p ? wholeDay : null,
     overdue,
-    days_overdue: overdue ? Math.max(0, Math.round((startOfDay(now) - startOfDay(p.date)) / 86400e3)) : null,
+    days_overdue: overdue ? Math.max(0, Math.round((startOfDay(now).getTime() - startOfDay(p.date).getTime()) / 86400e3)) : null,
     completed: done,
     completed_at: c ? localStamp(c.date) : null,
     priority: PRIORITY_OUT[r.priority] || (r.priority ? String(r.priority) : "none"),
@@ -42,6 +42,7 @@ export function mapReminder(r, now = new Date()) {
 
 const strip = ({ _s, ...rest }) => rest;
 
+/** @param {{ list?: string, completed?: boolean }} o */
 async function allReminders({ list, completed }) {
   const args = ["reminders", "list"];
   if (list) args.push(`--list=${list}`);
@@ -72,7 +73,7 @@ async function remindersLists() {
   return { count: raw.length, lists: raw.map((l) => ({ id: l.id, name: l.title, color: l.color || null, ...(l.isImmutable ? { read_only: true } : {}) })) };
 }
 
-async function remindersRead({ due, since, until, list, search, completed, id, limit } = {}) {
+async function remindersRead({ due, since, until, list, search, completed, id, limit } = /** @type {any} */ ({})) {
   const now = new Date(), today = startOfDay(now), tomorrow = addDays(today, 1);
   if (id) return { count: 1, reminders: [strip(mapReminder(await findReminder(id), now))] };
   const raw = await allReminders({ list, completed: !!completed });
@@ -196,7 +197,7 @@ registerUndo("reminders", "delete", {
   },
 });
 
-async function remindersCreate({ title, list, due, notes, url, priority } = {}) {
+async function remindersCreate({ title, list, due, notes, url, priority } = /** @type {any} */ ({})) {
   const t = String(title ?? "").trim();
   if (!t) throw new UserError("title is required.");
   if (list) await checkList(list);
@@ -219,7 +220,7 @@ async function remindersCreate({ title, list, due, notes, url, priority } = {}) 
 const describe = (r) => `"${r.title}" (list "${r.list}"${r.due ? `, due ${r.due}` : ""})`;
 
 /** Everything reminders_update will do, checked, without writing. */
-async function planUpdate({ id, title, due, notes, url, priority } = {}) {
+async function planUpdate({ id, title, due, notes, url, priority } = /** @type {any} */ ({})) {
   const raw = await findReminder(id);
   const before = strip(mapReminder(raw));
   const args = ["reminders", "update", `--id=${raw.id}`];
@@ -244,7 +245,7 @@ async function planUpdate({ id, title, due, notes, url, priority } = {}) {
   return { before, args, changes, raw: rawBefore };
 }
 
-async function remindersUpdate(a = {}) {
+async function remindersUpdate(a = /** @type {any} */ ({})) {
   const p = await planUpdate(a);
   const raw = await eventkit(p.args);
   const before = reminderState(p.raw), after = reminderState(raw);
@@ -260,12 +261,12 @@ async function remindersUpdate(a = {}) {
   };
 }
 
-async function previewUpdate(a = {}) {
+async function previewUpdate(a = /** @type {any} */ ({})) {
   const p = await planUpdate(a);
   return { summary: `Change ${describe(p.before)}: ${p.changes.map((c) => `${c.field} from ${JSON.stringify(c.from)} to ${JSON.stringify(c.to)}`).join("; ")}.`, changes: p.changes, reminder: p.before };
 }
 
-async function remindersComplete({ id, completed = true } = {}) {
+async function remindersComplete({ id, completed = true } = /** @type {any} */ ({})) {
   const before = await findReminder(id);
   const raw = await eventkit(["reminders", "update", `--id=${before.id}`, `--completed=${completed ? "true" : "false"}`, "--no-shortcuts", "--json"]);
   const repeats = !!before.recurrenceRules?.length;
@@ -281,14 +282,14 @@ async function remindersComplete({ id, completed = true } = {}) {
   };
 }
 
-async function previewComplete({ id, completed = true } = {}) {
+async function previewComplete({ id, completed = true } = /** @type {any} */ ({})) {
   const raw = await findReminder(id);
   const r = strip(mapReminder(raw));
   const repeats = raw.recurrenceRules?.length && completed ? " It repeats, so it moves to its next date." : "";
   return { summary: `${completed ? "Mark as done" : "Reopen"}: ${describe(r)}.${repeats}`, reminder: r };
 }
 
-async function remindersDelete({ id } = {}) {
+async function remindersDelete({ id } = /** @type {any} */ ({})) {
   const raw = await findReminder(id);
   await eventkit(["reminders", "delete", `--id=${raw.id}`], { json: false });
   const before = reminderState(raw);
@@ -301,7 +302,7 @@ async function remindersDelete({ id } = {}) {
   };
 }
 
-async function previewDelete({ id } = {}) {
+async function previewDelete({ id } = /** @type {any} */ ({})) {
   const r = strip(mapReminder(await findReminder(id)));
   return { summary: `Delete ${describe(r)}.`, reminder: r };
 }

@@ -79,16 +79,16 @@ async function music(opts) {
 const open = (o) => !!o;
 const when = (v, name) => { const d = parseArgDate(v, name); return d ? d.getTime() : null; };
 
-const musicNow = ({ open_if_closed } = {}) => music({ mode: "now", open_if_closed: open(open_if_closed) });
-const musicPlayed = ({ since, until, limit, open_if_closed } = {}) =>
+const musicNow = ({ open_if_closed } = /** @type {any} */ ({})) => music({ mode: "now", open_if_closed: open(open_if_closed) });
+const musicPlayed = ({ since, until, limit, open_if_closed } = /** @type {any} */ ({})) =>
   music({ mode: "played", since: when(since, "since"), until: when(until, "until"), limit: clampInt(limit, 1, 2000, 100), open_if_closed: open(open_if_closed) });
-const musicTop = ({ limit, open_if_closed } = {}) => music({ mode: "top", limit: clampInt(limit, 1, 2000, 50), open_if_closed: open(open_if_closed) });
-async function musicSearch({ query, limit, open_if_closed } = {}) {
+const musicTop = ({ limit, open_if_closed } = /** @type {any} */ ({})) => music({ mode: "top", limit: clampInt(limit, 1, 2000, 50), open_if_closed: open(open_if_closed) });
+async function musicSearch({ query, limit, open_if_closed } = /** @type {any} */ ({})) {
   const q = String(query ?? "").trim();
   if (!q) throw new UserError("query must not be empty.");
   return music({ mode: "search", query: q, limit: clampInt(limit, 1, 2000, 50), open_if_closed: open(open_if_closed) });
 }
-const musicPlaylists = ({ name, limit, open_if_closed } = {}) => (name
+const musicPlaylists = ({ name, limit, open_if_closed } = /** @type {any} */ ({})) => (name
   ? music({ mode: "playlist", name: String(name), limit: clampInt(limit, 1, 5000, 200), open_if_closed: open(open_if_closed) })
   : music({ mode: "playlists", open_if_closed: open(open_if_closed) }));
 
@@ -120,7 +120,7 @@ async function musicHistoryStatus() {
   return s.snapshots ? s : { ...s, message: NOT_ON };
 }
 
-async function musicHistoryTop({ since, until, group_by = "track", query, limit } = {}) {
+async function musicHistoryTop({ since, until, group_by = "track", query, limit } = /** @type {any} */ ({})) {
   const log = loadLog();
   if (!log.times.length) throw new UserError(NOT_ON);
   const { from, to } = range(since, until, 30);
@@ -128,11 +128,11 @@ async function musicHistoryTop({ since, until, group_by = "track", query, limit 
   return withCoverage(log, from, to, { group_by, ...(query ? { query } : {}), total_plays: r.total_plays, count: r.count, items: r.items });
 }
 
-async function musicHistoryTimeline({ since, until, bucket = "day", query } = {}) {
+async function musicHistoryTimeline({ since, until, bucket = "day", query } = /** @type {any} */ ({})) {
   const log = loadLog();
   if (!log.times.length) throw new UserError(NOT_ON);
   const { from, to } = range(since, until, bucket === "month" ? 365 : bucket === "week" ? 84 : 14);
-  if ((to - from) / 86400e3 > 3700) throw new UserError("The range is too long (ten years at most).");
+  if ((to.getTime() - from.getTime()) / 86400e3 > 3700) throw new UserError("The range is too long (ten years at most).");
   const rows = timeline(log, { since: from.getTime(), until: to.getTime(), bucket, query });
   return withCoverage(log, from, to, { bucket, ...(query ? { query } : {}), total_plays: rows.reduce((s, r) => s + (r.plays ?? 0), 0), periods: rows });
 }

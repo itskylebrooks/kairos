@@ -34,7 +34,7 @@ export const GAP_MS = 30 * 3600e3;
  *   musicRunning null means "not checked yet" (the cheap checks come first)
  */
 export function decide({ now, last, musicRunning, force = false }) {
-  if (!force && last && localDay(new Date(last)) === localDay(now) && now - new Date(last) < INTERVAL_MS) return { take: false, reason: "recent" };
+  if (!force && last && localDay(new Date(last)) === localDay(now) && now.getTime() - Date.parse(last) < INTERVAL_MS) return { take: false, reason: "recent" };
   if (musicRunning === null) return { take: null, reason: "check_music" };
   if (!musicRunning) return { take: false, reason: "music_closed" };
   if (force) return { take: true, reason: "manual" };
@@ -302,9 +302,10 @@ function lock() {
  */
 export async function runSnapshot({ now = new Date(), force = false, readLibrary }) {
   const unlock = lock();
-  if (!unlock) return { action: "skip", reason: "locked" };
+  if (!unlock) return { action: /** @type {const} */ ("skip"), reason: "locked" };
   try {
     const state = readState();
+    /** @param {string} reason @returns {{ action: "skip", reason: string }} */
     const check = (reason) => { writeJsonAtomic(statePath(), { ...(state || {}), last_check: { t: now.toISOString(), reason } }); return { action: "skip", reason }; };
     let d = decide({ now, last: state?.t ?? null, musicRunning: null, force });
     if (d.take === false) return check(d.reason);
