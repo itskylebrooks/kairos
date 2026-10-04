@@ -1,0 +1,12 @@
+# Installed by install.sh, never committed
+runtime/
+vendor/
+node_modules/
+
+# macOS
+.DS_Store
+
+# Local debugging output, may contain real data
+*.log
+scratch/
+.env
