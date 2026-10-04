@@ -150,6 +150,8 @@ The installer is generic: it knows nothing about the author's old `apple-mcp` se
 5. Release prep: MIT license, permission prompt screenshots, README polish (the README exists and is kept current with each change).
 6. Later: own Swift EventKit helper, Music additive writes, importing the privacy.apple.com export into the play log.
 
+`docs/ROADMAP.md` is the public version of this list, with the known limits each step removes. Update it with every change of plan or scope.
+
 ## Workflow
 
 - Work on `main`, no feature branches. Small commits, one concern each, Conventional Commit messages (`feat:`, `fix:`, `test:`, `docs:`, `chore:`, `refactor:`).

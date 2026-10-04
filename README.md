@@ -28,7 +28,7 @@ Everything below applies only to what Kairos' tools do for Claude. Kairos change
 
 **Our advice:** leave the Claude app's approval prompt **on** for Kairos' write tools, and do not choose "Always allow" for them. That prompt is a second check that only you can answer.
 
-**Known limits:** invitations someone else sent into one of your own calendars, and reminder lists shared with you, are not marked as `from_others` yet, because the EventKit helper does not report organizers or sharing. Kairos' own EventKit helper (planned) will fix this.
+**Known limits:** invitations someone else sent into one of your own calendars, and reminder lists shared with you, are not marked as `from_others` yet, because the EventKit helper does not report organizers or sharing. Kairos' own EventKit helper (planned) will fix this; see the [roadmap](docs/ROADMAP.md) for this and the other known limits.
 
 ## Requirements
 
@@ -131,6 +131,10 @@ Then Cmd+Q Claude and reopen it. If a Kairos shortcut changed, delete the old on
 2. Remove the `kairos` entry from `~/Library/Application Support/Claude/claude_desktop_config.json`.
 3. Delete the three **Kairos Notes** shortcuts in the Shortcuts app.
 4. Delete this folder, and `~/Library/Application Support/Kairos/` if you do not want to keep backups and play history.
+
+## Roadmap
+
+What comes next and which known limits each step removes: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Development
 
