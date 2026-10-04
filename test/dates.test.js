@@ -46,3 +46,10 @@ test("isBareDay", () => {
   assert.equal(isBareDay("2030-01-01 10:00"), false);
   assert.equal(isBareDay(undefined), false);
 });
+
+test("rejects times that would roll over into another hour or day", () => {
+  assert.equal(parseEkDate("2030-10-02 18:75"), null);
+  assert.equal(parseEkDate("2030-10-02 24:00"), null);
+  assert.equal(parseEkDate("2030-10-02 10:00:61"), null);
+  assert.equal(localStamp(parseEkDate("2030-10-02 23:59:59").date), "2030-10-02 23:59");
+});

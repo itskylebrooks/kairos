@@ -31,6 +31,7 @@ export function parseEkDate(v) {
     const ap = (m[7] || "").toUpperCase();
     if (ap === "PM" && h < 12) h += 12;
     if (ap === "AM" && h === 12) h = 0;
+    if (h > 23 || +m[5] > 59 || +(m[6] || 0) > 59) return null;
     return valid(new Date(+m[1], +m[2] - 1, +m[3], h, +m[5], +(m[6] || 0)), +m[1], +m[2], +m[3], false);
   }
   const t = Date.parse(s);
