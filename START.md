@@ -69,7 +69,7 @@ The `instructions` string should carry these rules for the model:
 - Name based lookup is ambiguous. Use note ids (`x-coredata://...`).
 - Rewriting a body destroys checklists and attachments.
 
-The promising route for real formatting is the one used by eliotshea/notes-mcp on GitHub: generated Shortcuts that call Notes' App Intents, passing Markdown so Notes converts it itself. That keeps headings and checklists and still needs no Full Disk Access. macOS Tahoe Notes also imports Markdown natively. Phase 1 starts with a spike to prove this route on my Mac (macOS Tahoe) before building on it. If it fails, fall back to JXA with honest docs about the formatting limits.
+The promising route for real formatting is the one used by eliotshea/notes-mcp on GitHub: generated Shortcuts that call Notes' App Intents, passing Markdown so Notes converts it itself. That keeps headings and checklists and still needs no Full Disk Access. Notes imports Markdown natively since macOS 26 Tahoe. Phase 1 starts with a spike to prove this route on my Mac (macOS 27) before building on it. If it fails, fall back to JXA with honest docs about the formatting limits.
 
 Notes tools: list folders, list notes (by folder, no deleted ones), search, read (HTML converted to Markdown), create (Markdown in), append (Markdown in). Replacing a body is allowed only for notes without checklists or attachments, and only behind the write flag.
 

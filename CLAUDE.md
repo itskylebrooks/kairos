@@ -4,6 +4,12 @@ Local MCP server that gives the Claude desktop app access to Apple data on macOS
 
 `START.md` is the original brief. This file holds the durable rules.
 
+## Target platform
+
+- Development and real data testing happen on macOS 27 (Apple silicon). Treat that as the primary target.
+- Notes behaviour, App Intents, Shortcuts and TCC prompts change between macOS releases. Anything learned on macOS 26 Tahoe (including the Notes findings below) must be rechecked on 27 before we rely on it.
+- When a behaviour depends on the macOS version, say so in the docs and in tool descriptions, and record which version it was verified on.
+
 ## Public repo: no personal data, ever
 
 The GitHub repo (`itskylebrooks/kairos`) is public, and so is its full history. A commit cannot be taken back.
@@ -80,6 +86,7 @@ Out of scope: Messages (needs Full Disk Access), Safari history, Maps.
 - Listing without a folder mixes in Recently Deleted. Exclude deleted notes by default and always report each note's folder.
 - Names are ambiguous: use note ids (`x-coredata://...`).
 - Rewriting a body destroys checklists and attachments.
+- Notes imports Markdown natively since macOS 26 Tahoe; confirm on 27.
 - Preferred route for formatting: generated Shortcuts calling Notes' App Intents with Markdown (as in eliotshea/notes-mcp). Fallback: JXA with honest docs about the limits.
 
 **Mail.** JXA against Mail. Slow on large mailboxes: every query has a default date range and limit. No send tool.
