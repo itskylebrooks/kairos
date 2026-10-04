@@ -5,7 +5,7 @@
 // {
 //   "osascript": { "<script name>": [ { "match": { ...input subset }, "output": <any> } | { "match": {}, "error": "..." } ] },
 //   "shortcuts": { "<shortcut name>": [ { "match": { ... }, "output": "<text>" } ] },
-//   "eventkit":  [ { "args": ["calendar", "list", ...], "output": <any> } ]
+//   "eventkit":  [ { "args": ["calendar", "list", ...], "output": <any> } | { "prefix": ["calendar", "list"], ... } ]
 // }
 // Cases are tried in order; the first whose match is a subset of the input wins.
 // A case with "once": true answers a single time, then the next matching case takes over.
@@ -71,7 +71,9 @@ export function fakeShortcut(fx, name, input) {
  * @param {string[]} args
  */
 export function fakeEventKit(fx, args) {
-  const hit = (fx.eventkit || []).find((c) => isDeepStrictEqual(c.args, args));
+  ((fx.calls ||= {}).eventkit ||= []).push(args);
+  // "args" must match exactly; "prefix" matches the first arguments only.
+  const hit = (fx.eventkit || []).find((c) => !c.used && (c.prefix ? isDeepStrictEqual(args.slice(0, c.prefix.length), c.prefix) : isDeepStrictEqual(c.args, args)));
   if (!hit) throw new Error(`fake: no eventkit fixture for ${JSON.stringify(args)}`);
   return answer(hit);
 }

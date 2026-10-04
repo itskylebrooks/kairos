@@ -55,6 +55,9 @@ export function parseArgDate(v, name) {
   return p.date;
 }
 
+/** "YYYY-MM-DD HH:mm:ss" in local time, the form the EventKit helper takes. @param {Date} d */
+export const ekStamp = (d) => `${localDay(d)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+
 /** Local time with offset and seconds, e.g. "2030-01-02T10:00:05+01:00". @param {Date} d */
 export function isoLocal(d) {
   const off = -d.getTimezoneOffset();

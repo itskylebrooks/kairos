@@ -8,7 +8,7 @@ import { UserError, permissionError } from "./errors.js";
 import { fakeEventKit, fakeFixtures } from "./fake.js";
 import { run } from "./run.js";
 
-const BIN_DIR = fileURLToPath(new URL("../../vendor/node_modules/mcp-server-apple-events/bin/", import.meta.url));
+const BIN_DIR = fileURLToPath(new URL("../../vendor/eventkit/", import.meta.url));
 
 // The binary also has a Cloudflare D1 `sync` command. Only local EventKit commands may run.
 const ALLOWED = new Set(["calendar", "reminders"]);
@@ -36,12 +36,19 @@ export async function eventkit(args, { json = true, timeoutMs = 60000 } = {}) {
     }
     throw e;
   }
-  const t = out.trim();
-  if (!json) return t;
+  return json ? parseHelperOutput(out) : out.trim();
+}
+
+/**
+ * The helper's stdout as JSON. It sometimes prints a notice before its JSON (and has already
+ * done the work), so parse from the first line that starts the JSON.
+ * @param {string} out
+ */
+export function parseHelperOutput(out) {
+  const t = String(out).trim();
   if (!t) return [];
-  try {
-    return JSON.parse(t);
-  } catch {
-    throw new Error(`EventKit helper returned unreadable output: ${t.slice(0, 200)}`);
-  }
+  try { return JSON.parse(t); } catch {}
+  const at = t.search(/^[[{]/m);
+  if (at > 0) { try { return JSON.parse(t.slice(at)); } catch {} }
+  throw new Error(`EventKit helper returned unreadable output: ${t.slice(0, 200)}`);
 }
