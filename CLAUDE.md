@@ -159,7 +159,7 @@ The installer is generic: it knows nothing about the author's old `apple-mcp` se
 4. Mail. Done.
 5. Release prep: MIT license, README polish, CHANGELOG, SECURITY.md, type check and CI, version 0.9.0. Done (permission prompt screenshots skipped).
 6. Next: health check tool (missing permissions and how to fix them), day view across all apps, free time finder, journal from dictations (notes move tool, allowlisted shortcut runner, Apple Journal "Create Entry"), Spokenly dictation routing, Mail housekeeping (Trash, archive, read state; never a permanent delete), own Swift EventKit helper (for 1.0).
-7. Later: permissions per AI app (only ever narrowing; client names are self declared), Music additive writes, importing the privacy.apple.com export into the play log.
+7. Later: permissions per AI app (only ever narrowing; client names are self declared), Notes image attachments from files on the Mac (images only, user named files), Music additive writes, importing the privacy.apple.com export into the play log.
 
 `docs/ROADMAP.md` is the public version of this list, with the known limits each step removes. Update it with every change of plan or scope.
 

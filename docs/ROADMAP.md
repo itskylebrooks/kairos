@@ -61,6 +61,7 @@ A small Swift binary built from this repo, replacing the third party helper (`mc
 - **Music play log backfill:** import the play history from the privacy.apple.com data export, so the log reaches back before logging started.
 - **Notes checklist ticking:** ticking a single checklist item needs a Notes action that Shortcuts on macOS 27 refuses to import; revisit with each macOS release.
 - **Permissions per AI app:** if Kairos is ever used by several AI apps at once, each could get its own set of apps and write rights. Today this already works by giving each app its own `kairos` entry with its own `KAIROS_APPS` and `KAIROS_WRITE`. The name an app reports when it connects is self declared, not proven, so it must never widen rights, only narrow them.
+- **Notes, attach images from files on the Mac:** add an image file (for example a photo or screenshot) to a new or existing note. To test on macOS 27: whether Notes' App Intents through a Kairos shortcut can attach a file without opening a window. Only image files, with a size limit, and only files you name in the chat, so a note can never become a way to copy other files off the Mac; attaching into a shared note needs your agreement like any shared write.
 - **Mail body search:** today search covers subject, sender and recipients only. Searching bodies would mean reading every message; only worth it as a capped option.
 
 ## Out of scope
