@@ -2,7 +2,7 @@
 
 Local MCP server that gives the Claude desktop app access to Apple data on macOS: Calendar, Reminders, Contacts, Notes, Mail and Music. Runs on the Mac over stdio, is never reachable from outside, needs no Full Disk Access. It replaced the author's older two server setup (`apple-data` plus the third party `apple-events`). The selling point is care: least privilege, read by default, writes only where safe, correct handling of dates, all day items, Unicode and deleted notes.
 
-`START.md` is the original brief. This file holds the durable rules.
+This file holds the durable rules. The original brief (`START.md`) was removed for the release; it remains in the git history.
 
 ## Target platform
 
