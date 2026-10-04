@@ -3,13 +3,16 @@
 // nothing here changes macOS or any other app.
 //
 //  1. Results: text written by other people (items marked from_others) is cleaned of
-//     invisible characters and listed in untrusted_fields; a warning note is added once;
-//     oversized results are refused.
+//     invisible characters and listed in untrusted_fields; a warning note is added once.
+//     Results have a size cap (KAIROS_MAX_RESULT_CHARS, default 20,000 characters): read
+//     results larger than that come in parts (paging.js, fitResult); previews and write
+//     results over it are refused, and the server reports a finished write as done.
 //  2. Writes to shared places need an explicit allow_shared, set only after asking the user.
 //  3. Destructive tools are two step: the first call only previews and returns a one time
 //     confirmation token; the change happens on a second call with that token.
 // (Scripts and programs are guarded in osascript.js and run.js.)
 import { createHash, randomBytes } from "node:crypto";
+import { RESULT_CHARS } from "./config.js";
 import { UserError } from "./errors.js";
 
 /* ================= 1. results ================= */
@@ -59,18 +62,23 @@ export function markUntrusted(result) {
 }
 
 /** No single result may flood the context; tools have their own paging below this. */
-export const MAX_RESULT_CHARS = 100_000;
+/** @type {number} */
+export const DEFAULT_RESULT_CHARS = RESULT_CHARS.default;
 
-export function limitResult(result) {
+/**
+ * Refuses a result larger than maxChars (previews and write results; read results are paged instead).
+ * @param {unknown} result
+ * @param {number} [maxChars]
+ */
+export function limitResult(result, maxChars = DEFAULT_RESULT_CHARS) {
   const n = JSON.stringify(result ?? null).length;
-  if (n > MAX_RESULT_CHARS) {
-    throw new UserError(`The result is too large (${n.toLocaleString("en")} characters, limit ${MAX_RESULT_CHARS.toLocaleString("en")}). Narrow the request: a shorter date range, a smaller limit, or read in parts with offset.`);
+  if (n > maxChars) {
+    throw new UserError(`The result is too large (${n.toLocaleString("en")} characters, limit ${maxChars.toLocaleString("en")}). Narrow the request.`);
   }
   return result;
 }
 
-/** Everything the server does to a tool result before it leaves Kairos. */
-export const processResult = (result) => limitResult(markUntrusted(result));
+export const processResult = (result, maxChars = DEFAULT_RESULT_CHARS) => limitResult(markUntrusted(result), maxChars);
 
 /* ================= 2. shared destinations ================= */
 

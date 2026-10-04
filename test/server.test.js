@@ -205,7 +205,8 @@ test("a finished write whose result is too large is reported as done, not as a f
   assert.equal(w.result.structuredContent.done, true);
   assert.match(w.result.structuredContent.activity_id, /^act-/);
   assert.match(w.result.structuredContent.message, /Do not repeat the call/);
+  // A large read result is not refused: it comes in parts.
   const r = await s.handle({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "notes_big_read", arguments: {} } });
-  assert.equal(r.result.isError, true);
-  assert.match(r.result.content[0].text, /too large/);
+  assert.equal(r.result.isError, undefined);
+  assert.equal(r.result.structuredContent.paging.has_more, true);
 });

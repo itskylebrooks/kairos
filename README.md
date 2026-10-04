@@ -48,6 +48,8 @@ Running the installer again is safe: it skips what is installed and keeps your e
 | `--music-log on` / `--music-log off` | Switch the Music play log on or off without asking |
 | `--dry-run` | Show what would change, change nothing |
 
+**Result size (optional):** one result holds at most 20,000 characters; larger ones come in parts. To change that, quit Claude, add `"KAIROS_MAX_RESULT_CHARS": "40000"` (any number from 5,000 to 100,000) to the `env` of the `kairos` entry in `~/Library/Application Support/Claude/claude_desktop_config.json`, and open Claude again. The installer keeps this setting.
+
 ### Permission prompts
 
 The first time Kairos uses an app, macOS asks once:
@@ -76,6 +78,7 @@ Limits worth knowing:
 - **Clearing a field** (an event's location, a reminder's notes) is not possible yet; replacing it with new text is.
 - **Mail** must be running (Kairos never opens it). Search looks at subject, sender and recipients within a date range (default the last 30 days), not inside message bodies, and leaves out trash and junk unless asked. Reading returns plain text without quoted history and signatures, in parts of 8,000 characters. Creating a draft shows a Mail window for a moment; replies keep the conversation thread and quote the original.
 - **Notes** are written through Shortcuts so Notes itself turns Markdown into real headings, checklists and tables. Block quotes and inline code lose their styling. Kairos only changes notes whose title is unique, and `notes_replace` keeps a private backup of the old text in `~/Library/Application Support/Kairos/backups/notes/`. Writing into a shared note or folder needs your explicit agreement, since other people can read it; replacing a shared note, or a note in a shared folder, is refused. Long notes are read in parts.
+- **Large results come in parts.** One result holds at most 20,000 characters, so Claude's context does not fill up with a year of events at once. Lists are split between whole items (events, notes, messages, songs), and one long text, such as a note or an email, is split by characters. Claude asks for the next part only when it needs it.
 
 ## Activity log and undo
 
@@ -125,7 +128,7 @@ Everything below applies only to what Kairos' tools do for Claude. Kairos change
 - **Shared places need consent.** Writing into a shared note or folder is refused unless you agreed, because other people can read it. Replacing a shared note, or a note in a shared folder, is always refused.
 - **Text from other people is marked.** Emails, events from read only calendars, shared notes and notes in shared folders come back flagged `from_others`, with invisible characters removed and their text fields listed as untrusted. Only your own mail in sent, drafts and outbox mailboxes is left unmarked: a sender address alone can be forged, so a message in your inbox that claims to be from you is still treated as someone else's.
 - **Every change is logged and can be undone.** See "Activity log and undo" above.
-- **Safety nets.** Notes are never deleted (undoing a note Kairos created moves it to Recently Deleted), `notes_replace` keeps a private backup, repeating events are never changed through Kairos, and no result can exceed 100,000 characters.
+- **Safety nets.** Notes are never deleted (undoing a note Kairos created moves it to Recently Deleted), `notes_replace` keeps a private backup, repeating events are never changed through Kairos, and no single result is larger than 20,000 characters: larger ones come in parts.
 
 **What depends on Claude:** following the rule that text from others is data, and asking you before answering a preview with a confirmation. Kairos makes this as hard to get wrong as it can (Claude never sees a change happen without a preview step), but it cannot tell whether *you* said yes.
 

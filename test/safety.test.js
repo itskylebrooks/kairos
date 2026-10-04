@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { UserError } from "../src/lib/errors.js";
-import { CONFIRM_TTL_MS, MAX_RESULT_CHARS, _resetTokens, assertNotShared, cleanText, issueToken, limitResult, markUntrusted, redeemToken } from "../src/lib/safety.js";
+import { CONFIRM_TTL_MS, DEFAULT_RESULT_CHARS, _resetTokens, assertNotShared, cleanText, issueToken, limitResult, markUntrusted, redeemToken } from "../src/lib/safety.js";
 
 afterEach(() => _resetTokens());
 
@@ -29,9 +29,11 @@ test("cleanText keeps normal Unicode: umlauts, Cyrillic, emoji with joiners are 
   assert.equal(cleanText("Grüße Ёлка 👋🏽\r\nok"), "Grüße Ёлка 👋🏽\nok");
 });
 
-test("oversized results are refused with advice", () => {
+test("oversized previews and write results are refused with advice (read results are paged instead)", () => {
+  assert.equal(DEFAULT_RESULT_CHARS, 20_000);
   assert.doesNotThrow(() => limitResult({ s: "x".repeat(1000) }));
-  assert.throws(() => limitResult({ s: "x".repeat(MAX_RESULT_CHARS) }), (e) => e instanceof UserError && /Narrow the request/.test(e.message));
+  assert.throws(() => limitResult({ s: "x".repeat(DEFAULT_RESULT_CHARS) }), (e) => e instanceof UserError && /Narrow the request/.test(e.message));
+  assert.doesNotThrow(() => limitResult({ s: "x".repeat(DEFAULT_RESULT_CHARS) }, 50_000), "the cap is configurable");
 });
 
 test("shared destinations need an explicit allow_shared", () => {

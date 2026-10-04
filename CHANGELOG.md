@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+**Large results come in parts**
+- One result now holds at most 20,000 characters (before: 100,000), so a single answer no longer fills Claude's context. Change it with `KAIROS_MAX_RESULT_CHARS` (5,000 to 100,000) in the Claude config; the installer keeps that setting.
+- A larger read result is no longer refused: it comes in parts. Lists are split between whole items (events, notes, messages, tracks), never inside one. One long text (a note, an email body, or a single oversized item in a list) is split by characters, at a line break where possible, and the result says so.
+- Each part carries `paging` (what is paged, total, offset, returned, `has_more`) and a `cursor`; every read tool takes `cursor` to fetch the next part, only when Claude needs it.
+- Sizes count characters as Claude receives them, so Cyrillic and other non Latin text counts one per character, not per byte; emoji are never cut in half.
+- A finished write is still always reported as done, never hidden by the size limit.
+- `notes_read` returns 12,000 characters of Markdown per part by default (before: 20,000), so a default part fits.
+
 ## 0.9.1 (2026-10-04)
 
 Fixes from a security and bug review.

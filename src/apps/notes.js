@@ -406,7 +406,7 @@ async function notesRead({ id, max_chars, offset } = /** @type {any} */ ({})) {
   if (n.locked) return { ...base, markdown: null, message: "This note is locked with a password; its text cannot be read." };
   const md = await readMarkdown(n);
   // Long notes come in parts, so one note cannot flood the context.
-  const max = clampInt(max_chars, 200, 100000, 20000), off = clampInt(offset, 0, 1e9, 0);
+  const max = clampInt(max_chars, 200, 100000, 12000), off = clampInt(offset, 0, 1e9, 0);
   /** @type {Record<string, any>} */
   const out = { ...base, markdown: md.markdown.slice(off, off + max), markdown_chars: md.markdown.length, checklists: md.checklists };
   if (off + max < md.markdown.length) Object.assign(out, { truncated: true, next_offset: off + max });
@@ -679,10 +679,10 @@ export const tools = [
   }),
   defineTool({
     name: "notes_read", app: "notes", title: "Read a note", annotations: READ, handler: notesRead,
-    description: "One note as Markdown, in parts of 20000 characters by default (max_chars, offset; the title is returned separately and is not repeated in markdown), with folder, dates, flags and attachment names. Checklist ticks are included when they can be read (checklists: resolved). Pass modified to notes_replace as expected_modified.",
+    description: "One note as Markdown, in parts of 12000 characters by default (max_chars, offset; the title is returned separately and is not repeated in markdown), with folder, dates, flags and attachment names. Checklist ticks are included when they can be read (checklists: resolved). Pass modified to notes_replace as expected_modified.",
     inputSchema: {
       type: "object", additionalProperties: false, required: ["id"],
-      properties: { id: NOTE_ID, max_chars: { type: "integer", description: "Max characters of markdown (default 20000)." }, offset: { type: "integer", description: "Continue a long note from next_offset." } },
+      properties: { id: NOTE_ID, max_chars: { type: "integer", description: "Max characters of markdown (default 12000)." }, offset: { type: "integer", description: "Continue a long note from next_offset." } },
     },
   }),
   defineTool({

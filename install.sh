@@ -211,7 +211,9 @@ edit_config() {
     let cfg = {};
     if (fs.existsSync(file)) cfg = JSON.parse(fs.readFileSync(file, "utf8") || "{}");
     cfg.mcpServers = cfg.mcpServers || {};
-    cfg.mcpServers.kairos = { command: node, args: [server], env: { KAIROS_APPS: apps, KAIROS_WRITE: write } };
+    // Settings added by hand (KAIROS_MAX_RESULT_CHARS, for example) are kept.
+    const env = { ...((cfg.mcpServers.kairos && cfg.mcpServers.kairos.env) || {}), KAIROS_APPS: apps, KAIROS_WRITE: write };
+    cfg.mcpServers.kairos = { command: node, args: [server], env };
     const text = JSON.stringify(cfg, null, 2) + "\n";
     if (dry === "1") { process.stdout.write(JSON.stringify(cfg.mcpServers.kairos, null, 2) + "\n"); }
     else fs.writeFileSync(file, text);

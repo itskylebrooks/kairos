@@ -33,6 +33,9 @@ export const CORE_APP = "kairos";
 
 const CONFIRMATION = { type: "string", description: "Leave out on the first call, which only previews. After the user said yes to the preview, repeat the call with the confirmation it returned." };
 
+const CURSOR = { type: "string", description: "Leave out at first. When a result has paging.has_more, repeat the call with the same arguments plus cursor set to paging.cursor to get the next part." };
+const PARTS = " Large results come in parts (see paging and cursor).";
+
 const HINTS = ["readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"];
 
 /**
@@ -57,6 +60,11 @@ export function defineTool(t) {
   if (t.preview) {
     if (t.inputSchema.properties?.confirmation) bad("confirmation is added automatically");
     return Object.freeze({ ...t, inputSchema: { ...t.inputSchema, properties: { ...(t.inputSchema.properties || {}), confirmation: CONFIRMATION } } });
+  }
+  // Read results larger than the size cap come in parts; the server handles the cursor.
+  if (t.annotations.readOnlyHint) {
+    if (t.inputSchema.properties?.cursor) bad("cursor is added automatically");
+    return Object.freeze({ ...t, description: t.description + PARTS, inputSchema: { ...t.inputSchema, properties: { ...(t.inputSchema.properties || {}), cursor: CURSOR } } });
   }
   return Object.freeze({ ...t });
 }
