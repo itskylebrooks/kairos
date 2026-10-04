@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+Fixes from a security and bug review.
+
+**Safety**
+- **Mail:** a message is treated as your own only when it lies in a sent, drafts or outbox mailbox. Before, a forged sender address was enough for a message to skip the `from_others` marking.
+- **Mail drafts:** each recipient entry is checked as a whole, so one entry can no longer carry a second, unchecked address; `from` must be one of your account addresses.
+- **Invisible text:** Unicode tag characters (invisible copies of ASCII that a model still reads) and the Arabic letter mark are removed from text written by others.
+- **Notes:** notes in a shared folder count as shared: they are marked `from_others`, and `notes_replace` refuses them.
+- **Calendar:** an event id that stands for several occurrences is refused like a repeating event.
+- **Arguments:** names such as `constructor` or `__proto__` no longer pass as known arguments.
+
+**Bugs**
+- **Calendar:** an all day event of several days was missing when only its last day was read; moving such an event across a clock change could shorten it by a day.
+- **Notes and Music:** a bare `modified_until` or `until` date now includes that day, as everywhere else.
+- **Dates:** times such as 18:75 or 24:00 are refused instead of rolling over.
+- **Server:** when a finished write returns too much text, the result says the change was made, instead of an error that invites a repeat. A tool's own note is kept when the warning about text from others is added.
+
 ## 0.9.0 (2026-10-04)
 
 The first public version. Tested on macOS 27 (Apple silicon).

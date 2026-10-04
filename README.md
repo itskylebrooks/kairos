@@ -75,7 +75,7 @@ Limits worth knowing:
 - **Repeating events** cannot be changed or deleted through Kairos yet (the EventKit helper would change the first occurrence). Change those in Calendar.
 - **Clearing a field** (an event's location, a reminder's notes) is not possible yet; replacing it with new text is.
 - **Mail** must be running (Kairos never opens it). Search looks at subject, sender and recipients within a date range (default the last 30 days), not inside message bodies, and leaves out trash and junk unless asked. Reading returns plain text without quoted history and signatures, in parts of 8,000 characters. Creating a draft shows a Mail window for a moment; replies keep the conversation thread and quote the original.
-- **Notes** are written through Shortcuts so Notes itself turns Markdown into real headings, checklists and tables. Block quotes and inline code lose their styling. Kairos only changes notes whose title is unique, and `notes_replace` keeps a private backup of the old text in `~/Library/Application Support/Kairos/backups/notes/`. Writing into a shared note or folder needs your explicit agreement, since other people can read it; replacing a shared note is refused. Long notes are read in parts.
+- **Notes** are written through Shortcuts so Notes itself turns Markdown into real headings, checklists and tables. Block quotes and inline code lose their styling. Kairos only changes notes whose title is unique, and `notes_replace` keeps a private backup of the old text in `~/Library/Application Support/Kairos/backups/notes/`. Writing into a shared note or folder needs your explicit agreement, since other people can read it; replacing a shared note, or a note in a shared folder, is refused. Long notes are read in parts.
 
 ## Activity log and undo
 
@@ -122,8 +122,8 @@ Everything below applies only to what Kairos' tools do for Claude. Kairos change
 - **Changes and deletes take two steps.** Any tool that changes, completes or deletes something first returns only a preview written by Kairos, plus a one time confirmation. The change happens only when Claude repeats the call with that confirmation, for exactly the same change, within 10 minutes. Creating things (events, reminders, notes, drafts) is one step.
 - **Mail never sends.** There is no send tool, and a test checks that no Mail script can send.
 - **No invitations.** Calendar events are created without attendees, so Kairos cannot send meeting invites.
-- **Shared places need consent.** Writing into a shared note or folder is refused unless you agreed, because other people can read it. Replacing a shared note is always refused.
-- **Text from other people is marked.** Emails not sent by you, events from read only calendars and shared notes come back flagged `from_others`, with invisible characters removed and their text fields listed as untrusted.
+- **Shared places need consent.** Writing into a shared note or folder is refused unless you agreed, because other people can read it. Replacing a shared note, or a note in a shared folder, is always refused.
+- **Text from other people is marked.** Emails, events from read only calendars, shared notes and notes in shared folders come back flagged `from_others`, with invisible characters removed and their text fields listed as untrusted. Only your own mail in sent, drafts and outbox mailboxes is left unmarked: a sender address alone can be forged, so a message in your inbox that claims to be from you is still treated as someone else's.
 - **Every change is logged and can be undone.** See "Activity log and undo" above.
 - **Safety nets.** Notes are never deleted (undoing a note Kairos created moves it to Recently Deleted), `notes_replace` keeps a private backup, repeating events are never changed through Kairos, and no result can exceed 100,000 characters.
 
