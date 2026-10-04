@@ -72,3 +72,12 @@ test("music: dates go in as local times, limits are clamped, unknown playlists e
   await assert.rejects(music("music_playlists", { name: "Nope" }), (e) => e instanceof UserError && /No playlist named "Nope"/.test(e.message));
   await assert.rejects(music("music_search", { query: "  " }), /must not be empty/);
 });
+
+test("music: a bare until date includes that day", async () => {
+  const fx = { osascript: { music: [{ output: { running: true, total: 0, tracks: [] } }] } };
+  setFakeFixtures(fx);
+  await music("music_played", { since: "2030-01-30", until: "2030-01-31" });
+  await music("music_played", { until: "2030-01-31 18:00" });
+  assert.equal(fx.calls.osascript[0].input.until, new Date(2030, 1, 1).getTime());
+  assert.equal(fx.calls.osascript[1].input.until, new Date(2030, 0, 31, 18).getTime());
+});

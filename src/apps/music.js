@@ -78,10 +78,12 @@ async function music(opts) {
 
 const open = (o) => !!o;
 const when = (v, name) => { const d = parseArgDate(v, name); return d ? d.getTime() : null; };
+/** An until argument as a time: a bare date includes that whole day. */
+const whenUntil = (v) => { const d = parseArgDate(v, "until"); return d ? (isBareDay(v) ? addDays(d, 1) : d).getTime() : null; };
 
 const musicNow = ({ open_if_closed } = /** @type {any} */ ({})) => music({ mode: "now", open_if_closed: open(open_if_closed) });
 const musicPlayed = ({ since, until, limit, open_if_closed } = /** @type {any} */ ({})) =>
-  music({ mode: "played", since: when(since, "since"), until: when(until, "until"), limit: clampInt(limit, 1, 2000, 100), open_if_closed: open(open_if_closed) });
+  music({ mode: "played", since: when(since, "since"), until: whenUntil(until), limit: clampInt(limit, 1, 2000, 100), open_if_closed: open(open_if_closed) });
 const musicTop = ({ limit, open_if_closed } = /** @type {any} */ ({})) => music({ mode: "top", limit: clampInt(limit, 1, 2000, 50), open_if_closed: open(open_if_closed) });
 async function musicSearch({ query, limit, open_if_closed } = /** @type {any} */ ({})) {
   const q = String(query ?? "").trim();
@@ -150,7 +152,7 @@ export const tools = [
   defineTool({
     name: "music_played", app: "music", title: "Recently played", annotations: READ, handler: musicPlayed,
     description: "Library tracks by when they were LAST played, newest first, for any period. Music stores only each track's last play date and total play count, so this is not a full play history: a track played twice in the period appears once. For plays per period (\"what did I listen to most in September\") use music_history_top when the play log is on.",
-    inputSchema: { type: "object", additionalProperties: false, properties: { since: DATE, until: DATE, limit: LIMIT, open_if_closed: OPEN } },
+    inputSchema: { type: "object", additionalProperties: false, properties: { since: DATE, until: { ...DATE, description: `${DATE.description} A bare date includes that day.` }, limit: LIMIT, open_if_closed: OPEN } },
   }),
   defineTool({
     name: "music_top", app: "music", title: "Most played", annotations: READ, handler: musicTop,
