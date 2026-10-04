@@ -31,6 +31,11 @@ The GitHub repo (`itskylebrooks/kairos`) is public, and so is its full history. 
 - Never build AppleScript or JXA source by concatenating user text. Scripts are static; all input goes in as JSON through `argv` and is parsed inside the script with `JSON.parse(argv[0])`.
 - Spawn processes with `execFile` (no shell).
 
+## Safety core (`src/lib/safety.js`, applied by the server to every tool)
+
+Only governs what Kairos' tools do for Claude; nothing here changes macOS or other apps.
+- Results: apps mark items holding other people's text with `from_others: true` (emails not from the user's addresses, events in read only calendars, shared notes). The server then removes invisible characters (zero width, bidi controls) from those items, lists their text fields in `untrusted_fields`, adds one warning `note`, and refuses any result over 100,000 characters. Apps never add their own notes or cleaning.
+
 ## Architecture
 
 - Plain Node 24, ESM, zero runtime dependencies, no build step. JSDoc types welcome.

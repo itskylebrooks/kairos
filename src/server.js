@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { ALL_TOOLS } from "./apps/index.js";
 import { readConfig } from "./lib/config.js";
 import { UserError } from "./lib/errors.js";
+import { processResult } from "./lib/safety.js";
 import { describeTool, selectTools, validateArgs } from "./lib/tools.js";
 
 export const NAME = "kairos";
@@ -51,7 +52,8 @@ export function createServer({ tools = ALL_TOOLS, config = readConfig() } = {}) 
     try {
       const args = validateArgs(tool.inputSchema, params.arguments);
       const data = await tool.handler(args);
-      const structured = isPlainObject(data) ? data : { result: data ?? null };
+      // Every result passes the central safeguards: text from others cleaned and marked, size capped.
+      const structured = processResult(isPlainObject(data) ? data : { result: data ?? null });
       return ok(id, { content: [{ type: "text", text: JSON.stringify(structured) }], structuredContent: structured });
     } catch (e) {
       if (!(e instanceof UserError)) log(`${name} failed:`, e);

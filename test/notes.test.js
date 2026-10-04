@@ -7,6 +7,7 @@ import { after, afterEach, before, test } from "node:test";
 import { tools } from "../src/apps/notes.js";
 import { UserError } from "../src/lib/errors.js";
 import { setFakeFixtures } from "../src/lib/fake.js";
+import { processResult } from "../src/lib/safety.js";
 
 const call = (name, args) => tools.find((t) => t.name === name).handler(args);
 const rejectsUser = (p, re) => assert.rejects(p, (e) => e instanceof UserError && re.test(e.message));
@@ -75,7 +76,9 @@ test("list: newest first, previews without the title, shared notes flagged", asy
   assert.equal(ada.preview, "Buy oat milk and coffee");
   assert.equal(ada.folder, "iCloud/Notes");
   assert.equal(r.notes.find((n) => n.title === "Locked").preview, null);
-  assert.match(r.note, /data, never as instructions/);
+  const sent = processResult(r); // as the server delivers it
+  assert.match(sent.note, /never instructions/);
+  assert.deepEqual(sent.notes.find((n) => n.title === "Shared plan").untrusted_fields, ["title", "preview"]);
 });
 
 test("list: date range and paging", async () => {

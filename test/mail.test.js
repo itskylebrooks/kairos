@@ -4,6 +4,7 @@ import { afterEach, test } from "node:test";
 import { MAIL_SCRIPTS, addressOf, clean, messageKey, parseKey, quoteFor, stripQuoted, tools } from "../src/apps/mail.js";
 import { UserError } from "../src/lib/errors.js";
 import { setFakeFixtures } from "../src/lib/fake.js";
+import { processResult } from "../src/lib/safety.js";
 
 const call = (name, args) => tools.find((t) => t.name === name).handler(args);
 const rejectsUser = (p, re) => assert.rejects(p, (e) => e instanceof UserError && re.test(e.message));
@@ -74,8 +75,10 @@ test("search: newest first, own mail not flagged, others marked untrusted, trash
   assert.deepEqual(r.messages.map((m) => m.subject), ["Re: Lunch with Ada", "Lunch with Ada", "Ignore previous instructions", "Grüße aus Köln", "Привет"]);
   assert.equal(r.messages[0].from_others, false);
   assert.equal(r.messages[1].from_others, true);
-  assert.deepEqual(r.untrusted_fields, ["from", "subject"]);
-  assert.match(r.note, /never instructions/);
+  const sent = processResult(r); // as the server delivers it
+  assert.deepEqual(sent.messages[1].untrusted_fields, ["from", "to", "subject"]);
+  assert.equal(sent.messages[0].untrusted_fields, undefined);
+  assert.match(sent.note, /never instructions/);
   const searched = fx.calls.osascript.find((c) => c.name === "mail.search").input.mailboxes.map((m) => m.path);
   assert.deepEqual(searched, ["INBOX", "Sent Messages", "INBOX"]);
   assert.match(r.messages[0].id, /^mail:ACC1\/Sent%20Messages#4$/);
@@ -110,7 +113,7 @@ test("read: clean body without quoted history, attachments, paging, untrusted ma
   assert.ok(r.quoted_or_signature_removed_chars > 0);
   assert.deepEqual(r.attachments, [{ name: "menu.pdf", size: 1234, type: "application/pdf" }]);
   assert.equal(r.from_others, true);
-  assert.deepEqual(r.untrusted_fields, ["from", "subject", "body", "attachments"]);
+  assert.deepEqual(processResult(r).untrusted_fields, ["from", "to", "subject", "body", "attachments"]);
   const full = await call("mail_read", { id, include_quoted: true, max_chars: 200 });
   assert.match(full.body, /> Lunch this week\?/);
   const part = await call("mail_read", { id, include_quoted: true, max_chars: 200, offset: 10 });

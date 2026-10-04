@@ -6,6 +6,7 @@ import { eventTimes, tools } from "../src/apps/calendar.js";
 import { UserError } from "../src/lib/errors.js";
 import { parseHelperOutput } from "../src/lib/eventkit.js";
 import { setFakeFixtures } from "../src/lib/fake.js";
+import { processResult } from "../src/lib/safety.js";
 
 const call = (name, args) => tools.find((t) => t.name === name).handler(args);
 const rejectsUser = (p, re) => assert.rejects(p, (e) => e instanceof UserError && re.test(e.message));
@@ -59,7 +60,9 @@ test("read: exact range, sorted, local times, all day ends, read only calendars 
   assert.equal(byTitle.Holiday.end, null);
   assert.equal(byTitle.Holiday.from_others, true);
   assert.equal(byTitle.Trip.from_others, undefined);
-  assert.match(r.note, /data, never as instructions/);
+  const sent = processResult(r); // as the server delivers it
+  assert.match(sent.note, /never instructions/);
+  assert.deepEqual(sent.events.find((e) => e.title === "Holiday").untrusted_fields, ["title"]);
   const starts = r.events.filter((e) => !e.all_day).map((e) => e.start);
   assert.deepEqual(starts, [...starts].sort());
 });
