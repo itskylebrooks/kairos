@@ -21,6 +21,18 @@ One tool for "what happened on September 12": the day's events, completed remind
 ### Free time finder
 "When do I have two free hours next week?" across all calendars, with rules you set once, for example "training evenings are blocked" or "nothing before 9 on Fridays". Mostly date math on data Kairos already reads.
 
+### Journal from dictations
+Spoken dictations land as notes in a dedicated Notes folder that works as an inbox. When you ask ("process my dictations"), Claude reads the unprocessed ones through Kairos, polishes each into a journal entry following your own journal rules (kept outside this repo, for example in a private Claude skill), and saves it to Apple Journal through an allowlisted shortcut using Journal's "Create Entry" action: title, body as Markdown, date set to the recording time.
+- **The raw dictation is never edited.** It moves to a "Processed" folder, and every step goes into the activity log so it can be undone.
+- **Journal is write only for Kairos:** entries cannot be read back. To decide: whether Kairos also keeps a readable copy (for example a note), and where.
+- **New pieces Kairos needs:** a tool to move notes between folders (two step, logged, undoable), and a general runner for allowlisted shortcuts, so Kairos can start a named shortcut it installed and nothing else.
+
+### Dictation with Spokenly
+Make recording the start of that pipeline. Spokenly on the Mac can start recording in a given mode through a deep link (`spokenly://start?mode_id=…`) and has a command line tool.
+- **To test:** whether each Spokenly mode can save to its own Notes folder (for example journal, blog, meeting). If yes, the mode does the routing.
+- **If not:** the first spoken word of a recording ("Journal.", "Blog.") routes it, and Claude asks when it is unclear.
+- **Private mode:** dictations in a private mode are never processed or copied. Claude only reads them into a chat when you ask.
+
 ### Kairos' own EventKit helper (1.0)
 A small Swift binary built from this repo, replacing the third party helper (`mcp-server-apple-events` 1.5.0) before the project is advertised. It removes these known limits:
 - **Invitations from others** in your own calendars are not marked `from_others`: the current helper does not report organizers or attendees.
