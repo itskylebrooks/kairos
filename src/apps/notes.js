@@ -3,11 +3,11 @@
 // (docs/notes-spike.md). Every write is guarded so it can only reach the intended note.
 import { createHash } from "node:crypto";
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { isoLocal, parseArgDate } from "../lib/dates.js";
 import { UserError } from "../lib/errors.js";
 import { jxa } from "../lib/osascript.js";
+import { dataDir } from "../lib/paths.js";
 import { clampInt } from "../lib/paging.js";
 import { runShortcut } from "../lib/shortcuts.js";
 import { ADD, READ, UPDATE, defineTool } from "../lib/tools.js";
@@ -285,7 +285,6 @@ const squash = (s) => String(s ?? "").replace(/[*_~`]/g, "").replace(/\s+/g, " "
 
 /* ================= backups (notes_replace) ================= */
 
-const dataDir = () => process.env.KAIROS_DATA_DIR || join(homedir(), "Library", "Application Support", "Kairos");
 const KEEP_BACKUPS = 100;
 
 function writeBackup(n, md) {
