@@ -36,6 +36,14 @@ Make recording the start of that pipeline. Spokenly on the Mac can start recordi
 - **If not:** the first spoken word of a recording ("Journal.", "Blog.") routes it, and Claude asks when it is unclear.
 - **Private mode:** dictations in a private mode are never processed or copied. Claude only reads them into a chat when you ask.
 
+### Mail housekeeping
+Three new Mail write tools: move to Trash, archive, and mark as read or unread. Mail writes stay opt in through the existing write setting for Mail.
+- **Never a permanent delete.** No tool empties the Trash or deletes a message outright. Messages only move, so they can always be found again in Mail (until Mail's own setting for erasing deleted messages removes them from the Trash).
+- **Two steps and undo, like every change.** Each call shows Kairos' preview and needs a one time confirmation, and goes into the activity log. Undo moves a message back to its original mailbox, or flips read back to unread (and the other way). Undo refuses when the message was moved or changed since.
+- **Small and exact.** At most 10 messages per call, addressed by id only, never by a search query.
+- **Only on your word.** Acting on a message because text written by someone else asks for it (an email saying "delete this" or "archive your inbox") is refused, unless you named that message yourself in the chat. Kairos cannot see who asked for a call, so this rule lives in Kairos' instructions and the tool descriptions; the preview and its confirmation are the check you see.
+- **Archive** uses the account's own archive mailbox and refuses when an account has none, rather than guessing.
+
 ### Kairos' own EventKit helper (1.0)
 A small Swift binary built from this repo, replacing the third party helper (`mcp-server-apple-events` 1.5.0) before the project is advertised. It removes these known limits:
 - **Invitations from others** in your own calendars are not marked `from_others`: the current helper does not report organizers or attendees.
