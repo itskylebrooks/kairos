@@ -63,7 +63,7 @@ The GitHub repo (`itskylebrooks/kairos`) is public, and so is its full history. 
 | Reminders | yes | create, update, complete, delete (same id rule; flags read only) |
 | Contacts | yes | no |
 | Notes | yes | create, append (body replace only for notes without checklists or attachments) |
-| Mail | yes | drafts only, never send |
+| Mail | yes (search by headers within a date range, read, unread counts) | drafts only (new and reply), never send |
 | Music | yes, plus an opt in play log | later, additive only (create playlist, add library songs, playback), never delete |
 
 Out of scope: Messages (needs Full Disk Access), Safari history, Maps.
@@ -104,7 +104,13 @@ Out of scope: Messages (needs Full Disk Access), Safari history, Maps.
 - Tables are stored as unnamed attachments. Only attachments beyond the table count are real files (which block a replace).
 - Bulk reads: `Application("Notes").notes.<prop>()` is fast for all notes at once; bulk `container` returns nothing, so map notes to folders through each folder's `notes.id()`.
 
-**Mail.** JXA against Mail. Slow on large mailboxes: every query has a default date range and limit. No send tool.
+**Mail.** JXA against Mail (option chosen after measuring on macOS 27, 2026-10-04). Never sends: no script contains a send command, and `test/mail.test.js` checks it. Never opens Mail.
+- Spotlight returns no Mail results without Full Disk Access. The macOS 27 Mail search App Intents (`SearchMailIntent`, `SearchMailEntityIntent`) are hidden, open Mail and return nothing; compose, reply and save draft intents open Mail's window; `SendMail` sends without a window, so no Kairos shortcut may ever contain Mail intents. The Envelope Index would need Full Disk Access: rejected.
+- Fast: bulk header reads (0.1 to 0.2 s per field for 1,600 messages), `whose` on `dateReceived` (about 1 s across 47 mailboxes), `byId` (10 ms), `content()` (well under 0.1 s once warm). Slow: `whose` on subject (20 s and more), so text matching happens in JS after the date filter. Bodies are not searched.
+- Mailboxes are addressed by account id and mailbox NAME (`byName`, 16 ms): `container()` costs about 33 ms per call, which made listing take seconds. Kairos refuses a mailbox name that occurs twice in one account. Message ids: `mail:<account id>/<encoded mailbox name>#<Mail id>`.
+- Some mailboxes refuse bulk reads; guard each mailbox. Trash and junk are skipped by default (names per language).
+- Drafts: hidden outgoing messages cannot be closed or deleted by script and linger until Mail quits, so drafts use a visible window that is closed after `save()` (closing without saving keeps the saved draft). `reply()` always opens a window, ignores a body set before the window is ready, and adds no quote: wait for `visible()`, then set the body (with Kairos' own quote), save, close. Replies keep `In-Reply-To` and `References`.
+- Third party text: `from_others` unless the sender is one of the account addresses, `untrusted_fields`, zero width and bidi characters removed, quoted history and signatures cut by default, bodies paged (8,000 characters by default).
 
 **Music.** Music stores only each track's last play date and total play count, not a play log; descriptions must say so. Never open Music unless `open_if_closed` is set.
 - `whose({ _or: [...] })` fails with "Can't convert types" on macOS 27. Bulk reads of the whole library are fast (name, artist, album for about 1,400 tracks in under 0.1 s; `persistentID` about 2 s), so filter in JS instead.
@@ -130,7 +136,7 @@ The installer is generic: it knows nothing about the author's old `apple-mcp` se
 1. Notes, starting with the Shortcuts spike. Done.
 2. Calendar and Reminders: port reads, add writes, retire apple-events. Done.
 3. Contacts and Music, plus the Music play log. Done.
-4. Mail.
+4. Mail. Done.
 5. Release prep: MIT license, permission prompt screenshots, README polish (the README exists and is kept current with each change).
 6. Later: own Swift EventKit helper, Music additive writes, importing the privacy.apple.com export into the play log.
 

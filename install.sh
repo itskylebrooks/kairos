@@ -18,8 +18,8 @@ NODE_DIST="https://nodejs.org/dist/latest-v24.x"
 SERVER="$DIR/src/server.js"
 SHORTCUTS_DIR="$DIR/build/shortcuts"
 NOTES_SHORTCUTS=("Kairos Notes Create" "Kairos Notes Append" "Kairos Notes Read")
-APPS="notes,calendar,reminders,contacts,music"   # apps built so far
-WRITABLE_APPS="notes calendar reminders"
+APPS="notes,calendar,reminders,contacts,music,mail"   # apps built so far
+WRITABLE_APPS="notes calendar reminders mail"
 
 # EventKit helper for Calendar and Reminders: FradSer's `event` CLI from the npm package
 # mcp-server-apple-events, pinned by version, package integrity and binary hashes. Only the
@@ -154,7 +154,7 @@ fi
 say "4. Self test"
 LISTED="$(printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}' '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
   | KAIROS_APPS="$APPS" KAIROS_WRITE="$(tr ' ' ',' <<<"$WRITABLE_APPS")" "$NODE" "$SERVER" 2>/dev/null)"
-for tool in notes_folders notes_read notes_create calendar_calendars calendar_read calendar_create reminders_lists reminders_read reminders_create contacts_search contacts_birthdays music_now music_played music_search; do
+for tool in notes_folders notes_read notes_create calendar_calendars calendar_read calendar_create reminders_lists reminders_read reminders_create contacts_search contacts_birthdays music_now music_played music_search mail_mailboxes mail_search mail_read; do
   grep -q "\"$tool\"" <<<"$LISTED" || fail "The server did not list $tool. Output: ${LISTED:0:300}"
 done
 ok "Kairos answers and lists its tools."
@@ -167,6 +167,7 @@ desc() {
     notes) echo "create notes, add to them and replace their text" ;;
     calendar) echo "create events, and change or delete them" ;;
     reminders) echo "create reminders, and change, complete or delete them" ;;
+    mail) echo "create Mail drafts (it never sends: you send them yourself)" ;;
   esac
 }
 in_list() { [[ ",$2," == *",$1,"* ]]; }
@@ -200,7 +201,7 @@ else
       add_write "$app"
     fi
   done
-  echo "  To change this later: ./install.sh --write notes,calendar,reminders (or all, or none)"
+  echo "  To change this later: ./install.sh --write notes,calendar,reminders,mail (or all, or none)"
 fi
 
 edit_config() {
@@ -267,7 +268,7 @@ fi
 
 say "Done. Left for you:"
 echo "  1. Quit Claude completely (Cmd+Q) and open it again. Closing the window is not enough."
-echo "  2. The first time Kairos reads Notes, Contacts or Music or lists calendars, macOS asks whether it"
+echo "  2. The first time Kairos reads Notes, Contacts, Mail or Music or lists calendars, macOS asks whether it"
 echo "     may control that app, and the EventKit helper asks for Calendars and Reminders. Allow them."
 echo "  3. The first time each Kairos shortcut runs, choose Always Allow for Notes."
 echo "  Kairos never needs Full Disk Access; leave it off."
