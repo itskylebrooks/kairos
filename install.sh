@@ -3,7 +3,6 @@
 # data on this Mac. stdio only, no network at runtime, no Full Disk Access.
 #
 #   ./install.sh               install or update, then write the "kairos" entry in Claude's config
-#   ./install.sh --migrate     also remove the old "apple-data" and "apple-events" entries (asks first)
 #   ./install.sh --dry-run     show the config change without writing anything
 #   ./install.sh --write notes allow Kairos to write to Notes without asking (--write none: read only)
 #   ./install.sh --config F    use another Claude config file (for testing)
@@ -20,14 +19,13 @@ SHORTCUTS_DIR="$DIR/build/shortcuts"
 NOTES_SHORTCUTS=("Kairos Notes Create" "Kairos Notes Append" "Kairos Notes Read")
 APPS="notes"   # apps built so far
 
-MIGRATE=0 DRY=0 WRITE_ARG=""
+DRY=0 WRITE_ARG=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --migrate) MIGRATE=1 ;;
     --dry-run) DRY=1 ;;
     --config) CONFIG="$2"; shift ;;
     --write) WRITE_ARG="$2"; shift ;;
-    -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1 (see --help)"; exit 1 ;;
   esac
   shift
@@ -152,28 +150,18 @@ else
   [ -n "$WRITE" ] || echo "  Read only. To allow writing later: ./install.sh --write notes"
 fi
 
-MIGRATE_OK=0
-if [ "$MIGRATE" = 1 ]; then
-  echo "  --migrate removes the old \"apple-data\" and \"apple-events\" entries from Claude's config."
-  echo "  Their files in ~/Code/apple-mcp are not touched."
-  ask "Remove them now?" && MIGRATE_OK=1
-fi
-
 edit_config() {
   "$NODE" -e '
     const fs = require("fs");
-    const [file, node, server, apps, write, migrate, dry] = process.argv.slice(1);
+    const [file, node, server, apps, write, dry] = process.argv.slice(1);
     let cfg = {};
     if (fs.existsSync(file)) cfg = JSON.parse(fs.readFileSync(file, "utf8") || "{}");
     cfg.mcpServers = cfg.mcpServers || {};
     cfg.mcpServers.kairos = { command: node, args: [server], env: { KAIROS_APPS: apps, KAIROS_WRITE: write } };
-    const removed = [];
-    if (migrate === "1") for (const k of ["apple-data", "apple-events"]) if (cfg.mcpServers[k]) { delete cfg.mcpServers[k]; removed.push(k); }
     const text = JSON.stringify(cfg, null, 2) + "\n";
     if (dry === "1") { process.stdout.write(JSON.stringify(cfg.mcpServers.kairos, null, 2) + "\n"); }
     else fs.writeFileSync(file, text);
-    if (removed.length) console.error("  removed: " + removed.join(", "));
-  ' "$CONFIG" "$PRIVATE_NODE" "$SERVER" "$APPS" "$WRITE" "$MIGRATE_OK" "$DRY"
+  ' "$CONFIG" "$PRIVATE_NODE" "$SERVER" "$APPS" "$WRITE" "$DRY"
 }
 
 if [ "$DRY" = 1 ]; then
@@ -195,6 +183,3 @@ echo "  1. Quit Claude completely (Cmd+Q) and open it again. Closing the window 
 echo "  2. The first time Kairos reads Notes, macOS asks whether it may control Notes. Allow it."
 echo "  3. The first time each Kairos shortcut runs, choose Always Allow for Notes."
 echo "  Kairos never needs Full Disk Access; leave it off."
-if [ "$MIGRATE" = 0 ]; then
-  echo "  Your old apple-data and apple-events entries are still there. Remove them later with: ./install.sh --migrate"
-fi

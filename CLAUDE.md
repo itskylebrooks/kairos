@@ -104,10 +104,10 @@ Out of scope: Messages (needs Full Disk Access), Safari history, Maps.
 
 ## Installer
 
-`install.sh`: private Node binary (`runtime/node-kairos`) with checksum check, the Kairos shortcuts (built and signed by `scripts/build-shortcuts.js`, one "Add Shortcut" click each, duplicates refused), a working self test, backup of the Claude config, one `kairos` entry with `KAIROS_APPS` and `KAIROS_WRITE`. `--migrate` removes the old `apple-data` and `apple-events` entries only after asking. `--dry-run` and `--config` allow testing without touching the real config. After updating, Claude must be quit (Cmd+Q) and reopened; the installer says so. The EventKit helper is added in Phase 2.
+`install.sh`: private Node binary (`runtime/node-kairos`) with checksum check, the Kairos shortcuts (built and signed by `scripts/build-shortcuts.js`, one "Add Shortcut" click each, duplicates refused), a working self test, backup of the Claude config, one `kairos` entry with `KAIROS_APPS` and `KAIROS_WRITE`. `--dry-run` and `--config` allow testing without touching the real config. After updating, Claude must be quit (Cmd+Q) and reopened; the installer says so. The EventKit helper is added in Phase 2.
 - Updating a shortcut: delete it in the Shortcuts app, then rerun the installer (importing over an existing name creates a duplicate).
 
-Do not modify or uninstall `~/Code/apple-mcp` until migration.
+The installer is generic: it knows nothing about the author's old `apple-mcp` setup. Retiring the old `apple-data` and `apple-events` entries is a one-off manual step on the author's Mac (with a config backup), done when Kairos covers their apps: `apple-events` after Phase 2, `apple-data` after Phase 3. Do not modify or uninstall `~/Code/apple-mcp` until then.
 
 ## Build order
 
