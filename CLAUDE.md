@@ -60,6 +60,8 @@ Only governs what Kairos' tools do for Claude; nothing here changes macOS or oth
   - Tool results return `structuredContent` plus a text copy.
   - Output schemas, if ever added, use JSON Schema 2020-12 only. Draft-07 broke the Filesystem extension in cloud sessions.
 - Tests use `node:test` (`npm test`). Fake osascript and fake EventKit modes are driven by fixtures in `test/fixtures/`, so the suite never touches real data.
+- `npm run typecheck` checks the JSDoc types with `tsc` (dev dependencies only, pinned exact; never a runtime dependency). CI (`.github/workflows/ci.yml`) runs tests and the type check on every push.
+- Versions: `package.json`, `package-lock.json` and `VERSION` in `src/server.js` stay equal (a test checks package.json against VERSION). Record each release in `CHANGELOG.md`.
 
 ### Instructions string for the model
 
@@ -150,8 +152,9 @@ The installer is generic: it knows nothing about the author's old `apple-mcp` se
 2. Calendar and Reminders: port reads, add writes, retire apple-events. Done.
 3. Contacts and Music, plus the Music play log. Done.
 4. Mail. Done.
-5. Release prep: MIT license, permission prompt screenshots, README polish (the README exists and is kept current with each change).
-6. Later: own Swift EventKit helper, Music additive writes, importing the privacy.apple.com export into the play log.
+5. Release prep: MIT license, README polish, CHANGELOG, SECURITY.md, type check and CI, version 0.9.0. Done (permission prompt screenshots skipped).
+6. Next: day view across all apps, free time finder, own Swift EventKit helper (for 1.0).
+7. Later: Music additive writes, importing the privacy.apple.com export into the play log.
 
 `docs/ROADMAP.md` is the public version of this list, with the known limits each step removes. Update it with every change of plan or scope.
 

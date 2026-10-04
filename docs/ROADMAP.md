@@ -11,6 +11,7 @@ What is done, what comes next, and the known limits each step removes. Kept curr
 - **Mail:** search, read, unread counts and drafts that are never sent.
 - **Safety core:** text from others marked and cleaned, registered scripts only, allowed programs only, consent for shared places, previews and one time confirmations for every change or delete.
 - **Activity log with undo:** a private log of every change Kairos makes, kept 90 days, with "what did Claude change" and a careful undo that never overwrites later edits.
+- **Release prep (0.9.0):** MIT license, README for people who are not developers, changelog, security policy, type checking and CI.
 
 ## Next
 
@@ -20,13 +21,7 @@ One tool for "what happened on September 12": the day's events, completed remind
 ### Free time finder
 "When do I have two free hours next week?" across all calendars, with rules you set once, for example "training evenings are blocked" or "nothing before 9 on Fridays". Mostly date math on data Kairos already reads.
 
-### Release prep
-- MIT license.
-- Screenshots of the permission prompts for the README.
-- README polish and install docs for people who are not developers.
-- Type checking of the JSDoc types with `tsc --checkJs --noEmit` (development only, no runtime dependency).
-
-### Kairos' own EventKit helper
+### Kairos' own EventKit helper (1.0)
 A small Swift binary built from this repo, replacing the third party helper (`mcp-server-apple-events` 1.5.0) before the project is advertised. It removes these known limits:
 - **Invitations from others** in your own calendars are not marked `from_others`: the current helper does not report organizers or attendees.
 - **Reminder lists shared with you** are not marked `from_others`: the current helper does not report sharing.
