@@ -200,16 +200,30 @@ function refuseRecurring(raw, what) {
   }
 }
 
-async function calendarUpdate({ id, title, start, end, location, notes } = {}) {
+/** "Title" (Tue 2030-01-15 10:00 to Tue 2030-01-15 11:00, calendar "Work") */
+const describe = (e) => `"${e.title}" (${e.start}${e.end ? ` to ${e.end}` : ""}, calendar "${e.calendar}")`;
+
+/** How helper time strings read to a person. */
+function showTimes(times) {
+  const s = parseEkDate(times.start), e = parseEkDate(times.end);
+  const f = (p) => (times.allDay ? fmtDay(p.date) : `${fmtDay(p.date)} ${localStamp(p.date).slice(11)}`);
+  return { start: f(s), end: f(e) };
+}
+
+/** Everything calendar_update will do, checked, without writing. */
+async function planUpdate({ id, title, start, end, location, notes } = {}) {
   const { raw } = await findEvent(id);
   refuseRecurring(raw, "change");
   const readOnly = await readOnlyNames();
   if (readOnly && readOnly.has(raw.calendar)) throw new UserError(`"${raw.title}" is in the read only calendar "${raw.calendar}".`);
+  const before = strip(mapEvent(raw, readOnly));
   const args = ["calendar", "update", `--id=${id}`];
+  const changes = [];
   if (title !== undefined) {
     const t = String(title).trim();
     if (!t) throw new UserError("title must not be empty.");
     args.push(`--title=${t}`);
+    changes.push({ field: "title", from: before.title, to: t });
   }
   if (start !== undefined || end !== undefined) {
     const cur = mapEvent(raw, null);
@@ -223,23 +237,46 @@ async function calendarUpdate({ id, title, start, end, location, notes } = {}) {
     }
     const times = eventTimes(s, e, "update");
     args.push(`--start=${times.start}`, `--end=${times.end}`);
+    const shown = showTimes(times);
+    changes.push({ field: "time", from: `${before.start}${before.end ? ` to ${before.end}` : ""}`, to: `${shown.start}${shown.end !== shown.start ? ` to ${shown.end}` : ""}` });
   }
   opt(args, "location", location);
+  if (location !== undefined) changes.push({ field: "location", from: before.location, to: location });
   opt(args, "notes", notes);
-  if (args.length === 3) throw new UserError("Nothing to change: pass at least one of title, start, end, location, notes.");
+  if (notes !== undefined) changes.push({ field: "notes", from: before.notes, to: notes });
+  if (!changes.length) throw new UserError("Nothing to change: pass at least one of title, start, end, location, notes.");
   args.push("--json");
-  const before = strip(mapEvent(raw, readOnly));
-  const after = await eventkit(args);
-  return { updated: strip(mapEvent(after, readOnly)), before };
+  return { before, readOnly, args, changes };
 }
 
-async function calendarDelete({ id } = {}) {
+async function calendarUpdate(a = {}) {
+  const p = await planUpdate(a);
+  const after = await eventkit(p.args);
+  return { updated: strip(mapEvent(after, p.readOnly)), before: p.before };
+}
+
+async function previewUpdate(a = {}) {
+  const p = await planUpdate(a);
+  return { summary: `Change ${describe(p.before)}: ${p.changes.map((c) => `${c.field} from ${JSON.stringify(c.from)} to ${JSON.stringify(c.to)}`).join("; ")}.`, changes: p.changes, event: p.before };
+}
+
+async function planDelete({ id } = {}) {
   const { raw } = await findEvent(id);
   refuseRecurring(raw, "delete");
   const readOnly = await readOnlyNames();
   if (readOnly && readOnly.has(raw.calendar)) throw new UserError(`"${raw.title}" is in the read only calendar "${raw.calendar}".`);
+  return { before: strip(mapEvent(raw, readOnly)) };
+}
+
+async function calendarDelete({ id } = {}) {
+  const p = await planDelete({ id });
   await eventkit(["calendar", "delete", `--id=${id}`], { json: false });
-  return { deleted: strip(mapEvent(raw, readOnly)) };
+  return { deleted: p.before };
+}
+
+async function previewDelete({ id } = {}) {
+  const p = await planDelete({ id });
+  return { summary: `Delete ${describe(p.before)}.`, event: p.before };
 }
 
 /* ================= tool definitions ================= */
@@ -279,16 +316,16 @@ export const tools = [
     },
   }),
   defineTool({
-    name: "calendar_update", app: "calendar", title: "Change an event", annotations: UPDATE, handler: calendarUpdate,
-    description: "Change fields of one event by id; only the fields passed change (moving start keeps the length). Tell the user exactly what will change and wait for a yes first. Repeating events are refused: change those in the Calendar app.",
+    name: "calendar_update", app: "calendar", title: "Change an event", annotations: UPDATE, handler: calendarUpdate, preview: previewUpdate,
+    description: "Change fields of one event by id; only the fields passed change (moving start keeps the length). Two steps: the first call only returns a preview and a confirmation; show the preview, wait for the user's yes, then call again with the same arguments plus confirmation. Repeating events are refused: change those in the Calendar app.",
     inputSchema: {
       type: "object", additionalProperties: false, required: ["id"],
       properties: { id: EVENT_ID, title: { type: "string" }, start: DATE, end: DATE, location: { type: "string", description: "New location (cannot be cleared yet)." }, notes: { type: "string", description: "New notes (cannot be cleared yet)." } },
     },
   }),
   defineTool({
-    name: "calendar_delete", app: "calendar", title: "Delete an event", annotations: DELETE, handler: calendarDelete,
-    description: "Delete one event by id. Tell the user exactly which event will be deleted and wait for a yes first. Repeating events are refused: delete those in the Calendar app.",
+    name: "calendar_delete", app: "calendar", title: "Delete an event", annotations: DELETE, handler: calendarDelete, preview: previewDelete,
+    description: "Delete one event by id. Two steps: the first call only returns a preview and a confirmation; show the preview, wait for the user's yes, then call again with the same arguments plus confirmation. Repeating events are refused: delete those in the Calendar app.",
     inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: EVENT_ID } },
   }),
 ];

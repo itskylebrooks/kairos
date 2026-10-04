@@ -131,3 +131,59 @@ test("ping, unknown methods, notifications and invalid requests", async () => {
   assert.equal((await server.handle({ id: 9, method: "ping" })).error.code, -32600);
   assert.equal((await server.handle([1, 2])).error.code, -32600);
 });
+
+/* ---------- two step tools: preview, then confirm ---------- */
+
+test("destructive tools must have a preview, and get a confirmation parameter", async () => {
+  const { UPDATE } = await import("../src/lib/tools.js");
+  const base = { name: "notes_wipe", app: "notes", title: "Wipe", description: "Invented.", inputSchema: { type: "object", properties: { id: { type: "string" } } }, annotations: UPDATE, handler: () => ({}) };
+  assert.throws(() => defineTool(base), /destructive tools need a preview/);
+  const t = defineTool({ ...base, preview: async () => ({ summary: "x" }) });
+  assert.ok(t.inputSchema.properties.confirmation);
+  for (const real of ALL_TOOLS.filter((x) => x.annotations.destructiveHint)) assert.equal(typeof real.preview, "function", real.name);
+});
+
+test("first call previews and changes nothing; the token confirms exactly that change, once", async () => {
+  const { UPDATE } = await import("../src/lib/tools.js");
+  const done = [];
+  const wipe = defineTool({
+    name: "notes_wipe", app: "notes", title: "Wipe", description: "Invented.", annotations: UPDATE,
+    inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: { type: "string" } } },
+    preview: async ({ id }) => ({ summary: `Wipe note ${id}.`, note_id: id }),
+    handler: async ({ id }) => { done.push(id); return { wiped: id }; },
+  });
+  const s = createServer({ tools: [wipe], config: cfg({ KAIROS_APPS: "notes", KAIROS_WRITE: "notes" }) });
+  const call = async (args) => (await s.handle({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "notes_wipe", arguments: args } })).result;
+
+  const p = (await call({ id: "N1" })).structuredContent;
+  assert.equal(p.changed, false);
+  assert.equal(p.preview, "Wipe note N1.");
+  assert.match(p.confirmation, /^confirm-[0-9a-f]{24}$/);
+  assert.match(p.note, /wait for a clear yes|wait for the user|Show the user/);
+  assert.deepEqual(done, [], "nothing happened on the preview");
+
+  const wrong = await call({ id: "N2", confirmation: p.confirmation });
+  assert.equal(wrong.isError, true);
+  assert.match(wrong.content[0].text, /different change/);
+  assert.deepEqual(done, []);
+
+  const p2 = (await call({ id: "N1" })).structuredContent;
+  assert.deepEqual((await call({ id: "N1", confirmation: p2.confirmation })).structuredContent, { wiped: "N1" });
+  assert.deepEqual(done, ["N1"]);
+  const again = await call({ id: "N1", confirmation: p2.confirmation });
+  assert.match(again.content[0].text, /already used/);
+  assert.deepEqual(done, ["N1"], "a token works once");
+});
+
+test("a preview that finds a problem refuses before any token is issued", async () => {
+  const { DELETE } = await import("../src/lib/tools.js");
+  const t = defineTool({
+    name: "notes_drop", app: "notes", title: "Drop", description: "Invented.", annotations: DELETE,
+    inputSchema: { type: "object", properties: { id: { type: "string" } } },
+    preview: async () => { throw new UserError("This note is locked."); }, handler: async () => ({}),
+  });
+  const s = createServer({ tools: [t], config: cfg({ KAIROS_APPS: "notes", KAIROS_WRITE: "notes" }) });
+  const r = (await s.handle({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "notes_drop", arguments: { id: "x" } } })).result;
+  assert.equal(r.isError, true);
+  assert.equal(r.content[0].text, "This note is locked.");
+});

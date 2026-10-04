@@ -278,3 +278,15 @@ test("read: long notes come in parts", async () => {
   const b = await call("notes_read", { id: N(10), max_chars: 300, offset: a.next_offset });
   assert.equal(b.markdown, "line of text\n".repeat(100).trim().slice(300, 600));
 });
+
+test("replace preview: what will happen, checks included, nothing written", async () => {
+  const fx = fixtures({ osascript: { "notes.by_name": [{ match: { name: "Ada's café list" }, output: [{ id: N(10), folder: F(2) }] }, { match: { name: "Ada's list v2" }, output: [] }] } });
+  setFakeFixtures(fx);
+  const preview = tools.find((t) => t.name === "notes_replace").preview;
+  const p = await preview({ id: N(10), markdown: "New body", title: "Ada's list v2", expected_modified: T(5) });
+  assert.match(p.summary, /^Replace the whole text of "Ada's café list" \(iCloud\/Notes, about \d+ characters now\) with 8 characters of new Markdown, and rename it to "Ada's list v2"\. The old text is saved to a private backup first\.$/);
+  assert.equal(p.new_text_start, "New body");
+  await rejectsUser(preview({ id: N(10), markdown: "x", expected_modified: T(4) }), /changed since it was read/);
+  assert.equal(fx.calls.shortcuts, undefined);
+  assert.ok(!fx.calls.osascript.some((c) => /clear|set_body/.test(c.name)), "nothing written");
+});

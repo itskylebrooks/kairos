@@ -25,7 +25,10 @@ export const DELETE = Object.freeze({ readOnlyHint: false, destructiveHint: true
  * @property {object} inputSchema
  * @property {Annotations} annotations
  * @property {(args: any) => Promise<any> | any} handler
+ * @property {(args: any) => Promise<{ summary: string }>} [preview]  makes the tool two step (see lib/safety.js)
  */
+
+const CONFIRMATION = { type: "string", description: "Leave out on the first call, which only previews. After the user said yes to the preview, repeat the call with the confirmation it returned." };
 
 const HINTS = ["readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"];
 
@@ -45,6 +48,13 @@ export function defineTool(t) {
   if (!t.annotations || !HINTS.every((h) => typeof t.annotations[h] === "boolean")) bad("all four annotation hints are required");
   if (t.annotations.openWorldHint !== false) bad("openWorldHint must be false");
   if (typeof t.handler !== "function") bad("handler is required");
+  // Every tool that changes or removes existing data is two step: preview, then confirm.
+  if (t.annotations.destructiveHint && typeof t.preview !== "function") bad("destructive tools need a preview");
+  if (t.preview !== undefined && typeof t.preview !== "function") bad("preview must be a function");
+  if (t.preview) {
+    if (t.inputSchema.properties?.confirmation) bad("confirmation is added automatically");
+    return Object.freeze({ ...t, inputSchema: { ...t.inputSchema, properties: { ...(t.inputSchema.properties || {}), confirmation: CONFIRMATION } } });
+  }
   return Object.freeze({ ...t });
 }
 

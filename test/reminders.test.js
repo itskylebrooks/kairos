@@ -112,3 +112,14 @@ test("complete and reopen, delete with plain text output", async () => {
   assert.equal((await call("reminders_delete", { id: "R3" })).deleted.title, "Call Ada");
   assert.deepEqual(fx.calls.eventkit.at(-1), ["reminders", "delete", "--id=R3"]);
 });
+
+test("previews describe update, complete and delete without writing", async () => {
+  const fx = fixtures();
+  setFakeFixtures(fx);
+  const preview = (name, args) => tools.find((t) => t.name === name).preview(args);
+  assert.match((await preview("reminders_update", { id: "R3", due: null, priority: "high" })).summary, /^Change "Call Ada" \(list "Errands", due .+\): due from ".+" to null; priority from "medium" to "high"\.$/);
+  assert.match((await preview("reminders_complete", { id: "R3" })).summary, /^Mark as done: "Call Ada"/);
+  assert.match((await preview("reminders_complete", { id: "R3", completed: false })).summary, /^Reopen: "Call Ada"/);
+  assert.match((await preview("reminders_delete", { id: "R4" })).summary, /^Delete "Someday idea" \(list "Kairos Test"\)\.$/);
+  assert.ok(fx.calls.eventkit.every((a) => a[1] === "list"), "previews only read");
+});

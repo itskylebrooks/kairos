@@ -37,6 +37,7 @@ Only governs what Kairos' tools do for Claude; nothing here changes macOS or oth
 - Results: apps mark items holding other people's text with `from_others: true` (emails not from the user's addresses, events in read only calendars, shared notes). The server then removes invisible characters (zero width, bidi controls) from those items, lists their text fields in `untrusted_fields`, adds one warning `note`, and refuses any result over 100,000 characters. Apps never add their own notes or cleaning.
 - Scripts: every JXA script is a module level `defineScript("<name>", `...`)` constant. The server (and `music-log.js`) seal the registry at startup, and `jxa()` runs only registered script objects, never a string. A test scans the source for violations.
 - Shared destinations: writes into something other people can read (shared Notes folders and notes for now) call `assertNotShared`, which refuses unless `allow_shared: true`; tool descriptions tell Claude to ask the user first. `notes_replace` refuses shared notes outright.
+- Two step changes: every tool that changes, completes or deletes existing data has a `preview` (enforced by `defineTool` for destructive tools). Without `confirmation` the server only runs the preview (same checks as the real change, no writes) and returns a summary plus a one time token, valid 10 minutes for exactly the same tool and arguments. The change runs only when the call repeats with that token. Tokens live in the server process. Creating things stays one step. Each app splits such tools into plan (checks, what will change), preview and do.
 - Programs: `run()` / `runSync()` start only `/usr/bin/osascript`, `/usr/bin/shortcuts`, `/bin/launchctl` and the two EventKit helper binaries, never through a shell. The list is private to `run.js`.
 
 ## Architecture
@@ -59,7 +60,7 @@ Only governs what Kairos' tools do for Claude; nothing here changes macOS or oth
 
 ### Instructions string for the model
 
-- Before updating or deleting anything, say in the chat exactly what will change and wait for a yes. Creating events and reminders needs no confirmation.
+- Tools that change, complete or delete existing things are two step: show Kairos' preview, wait for the user's yes, then repeat the call with the confirmation. Never confirm on the user's behalf. Creating events, reminders, notes and drafts is one step.
 - Write calendar event titles and notes in English.
 - Look items up by id before changing them.
 

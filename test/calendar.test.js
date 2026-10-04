@@ -139,3 +139,14 @@ test("calendars: names and writability; read only ones flagged", async () => {
   assert.equal(r.count, 4);
   assert.deepEqual(r.calendars.find((c) => c.name === "Holidays"), { name: "Holidays", writable: false, from_others: true });
 });
+
+test("previews describe the change and refuse what the change would refuse, without writing", async () => {
+  const fx = fixtures();
+  setFakeFixtures(fx);
+  const preview = (name, args) => tools.find((t) => t.name === name).preview(args);
+  const u = await preview("calendar_update", { id: "CAL1:EV1", start: "2030-01-15 15:00", title: "Lunch moved" });
+  assert.match(u.summary, /^Change "Lunch with Ada" \(Tue 2030-01-15 12:00 to Tue 2030-01-15 13:00, calendar "Kairos Test"\): title from "Lunch with Ada" to "Lunch moved"; time from "Tue 2030-01-15 12:00 to Tue 2030-01-15 13:00" to "Tue 2030-01-15 15:00 to Tue 2030-01-15 16:00"\.$/);
+  assert.match((await preview("calendar_delete", { id: "CAL1:EV3" })).summary, /^Delete "Trip" \(Wed 2030-01-16 to Fri 2030-01-18, calendar "Kairos Test"\)\.$/);
+  await rejectsUser(preview("calendar_delete", { id: "CAL1:EV6" }), /repeating event/);
+  assert.ok(fx.calls.eventkit.every((a) => a[1] === "list"), "previews only read");
+});

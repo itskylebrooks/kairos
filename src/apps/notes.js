@@ -452,7 +452,8 @@ async function notesAppend({ id, markdown, allow_shared } = {}) {
   return { appended: true, characters: md.length, ...summary(after || n, byId) };
 }
 
-async function notesReplace({ id, markdown, title, expected_modified } = {}) {
+/** Every check notes_replace makes, without writing. */
+async function planReplace({ id, markdown, title, expected_modified } = {}) {
   const body = checkMarkdownInput(markdown).replace(/^\n+|\n+$/g, "");
   const n = await writableNote(id, { body: true });
   const expected = Date.parse(String(expected_modified ?? ""));
@@ -467,6 +468,24 @@ async function notesReplace({ id, markdown, title, expected_modified } = {}) {
   if (newTitle !== n.name && (await liveNotesNamed(newTitle)).length) {
     throw new UserError(`Another note is already titled "${newTitle}". Choose a unique title.`);
   }
+  return { n, body, newTitle };
+}
+
+async function previewReplace(a = {}) {
+  const { n, body, newTitle } = await planReplace(a);
+  const { byId } = await folderTree();
+  const where = byId.get(n.folder)?.path ?? "Notes";
+  const oldChars = String(n.text ?? "").length;
+  return {
+    summary: `Replace the whole text of "${n.name}" (${where}, about ${oldChars} characters now) with ${body.length} characters of new Markdown${newTitle !== n.name ? `, and rename it to "${newTitle}"` : ""}. The old text is saved to a private backup first.`,
+    note_id: n.id,
+    new_text_start: body.slice(0, 400),
+  };
+}
+
+async function notesReplace(a = {}) {
+  const { id } = a;
+  const { n, body, newTitle } = await planReplace(a);
 
   const old = await readMarkdown(n);
   const backup = writeBackup(n, old);
@@ -572,8 +591,8 @@ export const tools = [
     inputSchema: { type: "object", additionalProperties: false, required: ["id", "markdown"], properties: { id: NOTE_ID, markdown: { type: "string" }, allow_shared: ALLOW_SHARED } },
   }),
   defineTool({
-    name: "notes_replace", app: "notes", title: "Replace a note's text", annotations: UPDATE, handler: notesReplace,
-    description: `Replace the whole body of a note with Markdown, in place (same id, folder and creation date). Destructive: tell the user exactly what will change and wait for a yes. Requires expected_modified from a fresh notes_read. Refused for locked or shared notes, notes with attachments, and notes whose title is not unique. The old version is saved to a private backup file first. ${MD}`,
+    name: "notes_replace", app: "notes", title: "Replace a note's text", annotations: UPDATE, handler: notesReplace, preview: previewReplace,
+    description: `Replace the whole body of a note with Markdown, in place (same id, folder and creation date). Destructive, so two steps: the first call only returns a preview and a confirmation; show the preview, wait for the user's yes, then call again with the same arguments plus confirmation. Requires expected_modified from a fresh notes_read. Refused for locked or shared notes, notes with attachments, and notes whose title is not unique. The old version is saved to a private backup file first. ${MD}`,
     inputSchema: {
       type: "object", additionalProperties: false, required: ["id", "markdown", "expected_modified"],
       properties: {

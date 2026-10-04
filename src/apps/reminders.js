@@ -143,22 +143,42 @@ async function remindersCreate({ title, list, due, notes, url, priority } = {}) 
   return { created: strip(mapReminder(await eventkit(args))) };
 }
 
-async function remindersUpdate({ id, title, due, notes, url, priority } = {}) {
-  const before = await findReminder(id);
-  const args = ["reminders", "update", `--id=${before.id}`];
+/** "Title" (list "Errands", due Tue 2030-01-15) */
+const describe = (r) => `"${r.title}" (list "${r.list}"${r.due ? `, due ${r.due}` : ""})`;
+
+/** Everything reminders_update will do, checked, without writing. */
+async function planUpdate({ id, title, due, notes, url, priority } = {}) {
+  const raw = await findReminder(id);
+  const before = strip(mapReminder(raw));
+  const args = ["reminders", "update", `--id=${raw.id}`];
+  const changes = [];
   if (title !== undefined) {
     const t = String(title).trim();
     if (!t) throw new UserError("title must not be empty.");
     args.push(`--title=${t}`);
+    changes.push({ field: "title", from: before.title, to: t });
   }
-  if (due === null || due === "") args.push("--clear-due");
-  else if (due !== undefined) args.push(`--due=${dueArg(due)}`);
+  if (due === null || due === "") { args.push("--clear-due"); changes.push({ field: "due", from: before.due, to: null }); }
+  else if (due !== undefined) { args.push(`--due=${dueArg(due)}`); changes.push({ field: "due", from: before.due, to: due }); }
   opt(args, "notes", notes);
+  if (notes !== undefined) changes.push({ field: "notes", from: before.notes, to: notes });
   opt(args, "url", url);
+  if (url !== undefined) changes.push({ field: "url", from: before.url, to: url });
   opt(args, "priority", priorityArg(priority));
-  if (args.length === 3) throw new UserError("Nothing to change: pass at least one of title, due, notes, url, priority.");
+  if (priority !== undefined) changes.push({ field: "priority", from: before.priority, to: priority });
+  if (!changes.length) throw new UserError("Nothing to change: pass at least one of title, due, notes, url, priority.");
   args.push("--no-shortcuts", "--json");
-  return { updated: strip(mapReminder(await eventkit(args))), before: strip(mapReminder(before)) };
+  return { before, args, changes };
+}
+
+async function remindersUpdate(a = {}) {
+  const p = await planUpdate(a);
+  return { updated: strip(mapReminder(await eventkit(p.args))), before: p.before };
+}
+
+async function previewUpdate(a = {}) {
+  const p = await planUpdate(a);
+  return { summary: `Change ${describe(p.before)}: ${p.changes.map((c) => `${c.field} from ${JSON.stringify(c.from)} to ${JSON.stringify(c.to)}`).join("; ")}.`, changes: p.changes, reminder: p.before };
 }
 
 async function remindersComplete({ id, completed = true } = {}) {
@@ -167,10 +187,22 @@ async function remindersComplete({ id, completed = true } = {}) {
   return { reminder: strip(mapReminder(after)), ...(before.recurrenceRules?.length && completed ? { note: "This reminder repeats: completing it moves it to its next date." } : {}) };
 }
 
+async function previewComplete({ id, completed = true } = {}) {
+  const raw = await findReminder(id);
+  const r = strip(mapReminder(raw));
+  const repeats = raw.recurrenceRules?.length && completed ? " It repeats, so it moves to its next date." : "";
+  return { summary: `${completed ? "Mark as done" : "Reopen"}: ${describe(r)}.${repeats}`, reminder: r };
+}
+
 async function remindersDelete({ id } = {}) {
   const before = await findReminder(id);
   await eventkit(["reminders", "delete", `--id=${before.id}`], { json: false });
   return { deleted: strip(mapReminder(before)) };
+}
+
+async function previewDelete({ id } = {}) {
+  const r = strip(mapReminder(await findReminder(id)));
+  return { summary: `Delete ${describe(r)}.`, reminder: r };
 }
 
 /* ================= tool definitions ================= */
@@ -207,21 +239,21 @@ export const tools = [
     },
   }),
   defineTool({
-    name: "reminders_update", app: "reminders", title: "Change a reminder", annotations: UPDATE, handler: remindersUpdate,
-    description: "Change fields of one reminder by id; only the fields passed change. due: null removes the date. Tell the user exactly what will change and wait for a yes first.",
+    name: "reminders_update", app: "reminders", title: "Change a reminder", annotations: UPDATE, handler: remindersUpdate, preview: previewUpdate,
+    description: "Change fields of one reminder by id; only the fields passed change. due: null removes the date. Two steps: the first call only returns a preview and a confirmation; show the preview, wait for the user's yes, then call again with the same arguments plus confirmation.",
     inputSchema: {
       type: "object", additionalProperties: false, required: ["id"],
       properties: { id: REM_ID, title: { type: "string" }, due: { type: ["string", "null"], description: "Date, date-time, or null to remove." }, notes: { type: "string", description: "New notes (cannot be cleared yet)." }, url: { type: "string", description: "New URL (cannot be cleared yet)." }, priority: PRIORITY },
     },
   }),
   defineTool({
-    name: "reminders_complete", app: "reminders", title: "Complete a reminder", annotations: { ...UPDATE, destructiveHint: false }, handler: remindersComplete,
-    description: "Mark one reminder as done by id (completed: false reopens it). Tell the user which reminder and wait for a yes first.",
+    name: "reminders_complete", app: "reminders", title: "Complete a reminder", annotations: { ...UPDATE, destructiveHint: false }, handler: remindersComplete, preview: previewComplete,
+    description: "Mark one reminder as done by id (completed: false reopens it). Two steps: the first call only returns a preview and a confirmation; show the preview, wait for the user's yes, then call again with the same arguments plus confirmation.",
     inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: REM_ID, completed: { type: "boolean", description: "Default true." } } },
   }),
   defineTool({
-    name: "reminders_delete", app: "reminders", title: "Delete a reminder", annotations: DELETE, handler: remindersDelete,
-    description: "Delete one reminder by id. Tell the user exactly which reminder will be deleted and wait for a yes first.",
+    name: "reminders_delete", app: "reminders", title: "Delete a reminder", annotations: DELETE, handler: remindersDelete, preview: previewDelete,
+    description: "Delete one reminder by id. Two steps: the first call only returns a preview and a confirmation; show the preview, wait for the user's yes, then call again with the same arguments plus confirmation.",
     inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: REM_ID } },
   }),
 ];
