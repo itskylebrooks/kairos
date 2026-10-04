@@ -84,7 +84,7 @@ Out of scope: Messages (needs Full Disk Access), Safari history, Maps.
 - FradSer's own MCP tools are buggy (single day reads empty, read by id fails, overdue filter empty). Don't copy their logic.
 - The binary also contains a Cloudflare D1 `sync` subcommand. Never call it (the runner only allows `calendar` and `reminders`). Before going public, replace the helper with our own small Swift EventKit binary, which should also handle occurrences, clearing fields and flags.
 
-**Contacts.** One Apple Events round trip per property (bulk fetch), quit Contacts afterwards if it wasn't running, 5 minute cache. Birth year 1604 means "year unknown".
+**Contacts.** One Apple Events round trip per property (bulk fetch), quit Contacts afterwards if it wasn't running, 5 minute cache. Birth year 1604 means "year unknown". Search matches every word, accents ignored; 29 February birthdays fall on 28 February in other years.
 
 **Notes.**
 - AppleScript/JXA body writes never produce real paragraph styles: `<h1>`..`<h3>` become fake bold text, plain text and Markdown pass through literally, line breaks collapse, bullets survive, checklists are silently dropped.
@@ -107,6 +107,8 @@ Out of scope: Messages (needs Full Disk Access), Safari history, Maps.
 **Mail.** JXA against Mail. Slow on large mailboxes: every query has a default date range and limit. No send tool.
 
 **Music.** Music stores only each track's last play date and total play count, not a play log; descriptions must say so. Never open Music unless `open_if_closed` is set.
+- `whose({ _or: [...] })` fails with "Can't convert types" on macOS 27. Bulk reads of the whole library are fast (name, artist, album for about 1,400 tracks in under 0.1 s; `persistentID` about 2 s), so filter in JS instead.
+- Only library tracks have counts: songs streamed without being added to the library are invisible.
 
 ## Installer
 
