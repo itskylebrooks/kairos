@@ -124,6 +124,36 @@ const notesAction = (id, intent, params) => ({
   WFWorkflowActionParameters: { AppIntentDescriptor: descriptor(intent), UUID: id, ...params },
 });
 
+/** Legacy "Append to Note" action, backed by Notes' AppendToNoteLinkAction intent. */
+const appendNote = (id, textRef, noteRef) => ({
+  WFWorkflowActionIdentifier: "is.workflow.actions.appendnote",
+  WFWorkflowActionParameters: {
+    UUID: id,
+    AppIntentDescriptor: descriptor("AppendToNoteLinkAction"),
+    WFInput: text(textRef),
+    WFNote: attachment(noteRef),
+    interpretAsMarkdown: true,
+  },
+});
+
+/** If <variable> is <value> (string comparison; compare a Text action's output). */
+const ifIs = (group, value, variable) => ({
+  WFWorkflowActionIdentifier: "is.workflow.actions.conditional",
+  WFWorkflowActionParameters: {
+    UUID: uuid(),
+    GroupingIdentifier: group,
+    WFControlFlowMode: 0,
+    WFCondition: 4, // "is"
+    WFConditionalActionString: value,
+    WFInput: { Type: "Variable", Variable: attachment(variable) },
+  },
+});
+
+const endIf = (group) => ({
+  WFWorkflowActionIdentifier: "is.workflow.actions.conditional",
+  WFWorkflowActionParameters: { UUID: uuid(), GroupingIdentifier: group, WFControlFlowMode: 2 },
+});
+
 const workflow = (actions) => ({
   WFWorkflowClientVersion: "4610",
   WFWorkflowMinimumClientVersion: 900,
@@ -168,6 +198,84 @@ export const SHORTCUTS = {
         folder: attachment(ref(ff, "Folder")),
         interpretAsMarkdown: true,
       }),
+    ]);
+  },
+
+  // Create without the folder Find: macOS 27 Notes has no Find action for folders
+  // (VisibleFoldersQuery has no filter parameters), so "Create" fails with "an action
+  // could not be found". Here the folder name goes in as text for Notes to resolve.
+  // in/out: as Create
+  [`${PREFIX} Create2`]: () => {
+    const kn = uuid(), km = uuid(), kf = uuid();
+    return workflow([
+      getValueForKey(kn, "name"),
+      getValueForKey(km, "markdown"),
+      getValueForKey(kf, "folder"),
+      notesAction(uuid(), "CreateNoteLinkAction", {
+        name: text(ref(kn, DV)),
+        contents: text(ref(km, DV)),
+        folder: text(ref(kf, DV)),
+        interpretAsMarkdown: true,
+      }),
+    ]);
+  },
+
+  // Fix learned from iangray001/applenotes-mcp (verified on macOS 27): a Dictionary
+  // Value is untyped, and rich text parameters ignore it (or Shortcuts asks the user).
+  // Pass it through a Text action first. Append uses the legacy appendnote action with
+  // WFInput / WFNote plus interpretAsMarkdown. Appending to the note this run created
+  // means no lookup by name, so nothing outside the new note can be touched.
+  // in: {"name", "markdown", "folder", "append"}  out: the created Note
+  [`${PREFIX} Create3`]: () => {
+    const kn = uuid(), km = uuid(), kf = uuid(), ka = uuid(), tm = uuid(), ta = uuid(), cn = uuid();
+    return workflow([
+      getValueForKey(kn, "name"),
+      getValueForKey(km, "markdown"),
+      getValueForKey(kf, "folder"),
+      getValueForKey(ka, "append"),
+      getText(tm, text(ref(km, DV))),
+      getText(ta, text(ref(ka, DV))),
+      notesAction(cn, "CreateNoteLinkAction", {
+        name: text(ref(kn, DV)),
+        contents: text(ref(tm, "Text")),
+        folder: text(ref(kf, DV)),
+        interpretAsMarkdown: true,
+      }),
+      appendNote(uuid(), ref(ta, "Text"), ref(cn, "Note")),
+    ]);
+  },
+
+  // Append to the note with this exact name. Run only after Props reports exactly one
+  // match: with no match Shortcuts asks a person which note to use.
+  // in: {"name", "markdown"}
+  [`${PREFIX} Append2`]: () => {
+    const kn = uuid(), km = uuid(), tm = uuid(), fn = uuid();
+    return workflow([
+      getValueForKey(kn, "name"),
+      getValueForKey(km, "markdown"),
+      getText(tm, text(ref(km, DV))),
+      findByName(fn, "NoteEntity", text(ref(kn, DV)), 1),
+      appendNote(uuid(), ref(tm, "Text"), ref(fn, "Note")),
+    ]);
+  },
+
+  // Guarded append: find by name (up to 2), and append only when exactly one note
+  // matched. Otherwise the If skips the append, so Shortcuts never has an empty note
+  // parameter to ask a person about. Encoding of If from iangray001/applenotes-mcp.
+  // in: {"name", "markdown"}  out: "matches: N" (appended only when N is 1)
+  [`${PREFIX} Append3`]: () => {
+    const kn = uuid(), km = uuid(), tm = uuid(), fn = uuid(), c = uuid(), tc = uuid(), group = uuid();
+    return workflow([
+      getValueForKey(kn, "name"),
+      getValueForKey(km, "markdown"),
+      getText(tm, text(ref(km, DV))),
+      findByName(fn, "NoteEntity", text(ref(kn, DV)), 2),
+      count(c, ref(fn, "Note")),
+      getText(tc, text(ref(c, "Count"))),
+      ifIs(group, "1", ref(tc, "Text")),
+      appendNote(uuid(), ref(tm, "Text"), ref(fn, "Note")),
+      endIf(group),
+      getText(uuid(), text("matches: ", ref(c, "Count"))),
     ]);
   },
 
