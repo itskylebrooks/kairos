@@ -4,7 +4,7 @@
 #
 #   ./install.sh               install or update, then write the "kairos" entry in Claude's config
 #   ./install.sh --dry-run     show the config change without writing anything
-#   ./install.sh --write notes allow Kairos to write to Notes without asking (--write none: read only)
+#   ./install.sh --write LIST  set which apps may write, e.g. notes,calendar (or all, or none)
 #   ./install.sh --config F    use another Claude config file (for testing)
 #
 # Safe to run again: it skips what is already there and backs up the config before editing it.
@@ -17,7 +17,17 @@ NODE_DIST="https://nodejs.org/dist/latest-v24.x"
 SERVER="$DIR/src/server.js"
 SHORTCUTS_DIR="$DIR/build/shortcuts"
 NOTES_SHORTCUTS=("Kairos Notes Create" "Kairos Notes Append" "Kairos Notes Read")
-APPS="notes"   # apps built so far
+APPS="notes,calendar,reminders"   # apps built so far
+WRITABLE_APPS="notes calendar reminders"
+
+# EventKit helper for Calendar and Reminders: FradSer's `event` CLI from the npm package
+# mcp-server-apple-events, pinned by version, package integrity and binary hashes. Only the
+# two binaries are kept. To be replaced by Kairos' own Swift helper before release.
+EVENT_PKG="https://registry.npmjs.org/mcp-server-apple-events/-/mcp-server-apple-events-1.5.0.tgz"
+EVENT_INTEGRITY="sha512-vQDRNoDXp+iDNnWZt/LvPRgBmMcMdWLxaNGUw54NBJgLM9PXTGqF89f+l2O5tAJSWKzCcXrWDEXUzu8HJ3zP+w=="
+EVENT_SHA256="dee0b28da225f313a85f14179b761b8f46f051339f97d91fe5adfc3df1bbf9e7"
+DISCLAIM_SHA256="4338a80457fba1359a56f0c010ecaf3b2c59856a74bd2b70acaaf6060a1814dc"
+EVENT_DIR="$DIR/vendor/eventkit"
 
 DRY=0 WRITE_ARG=""
 while [ $# -gt 0 ]; do
@@ -83,6 +93,27 @@ NODE="$PRIVATE_NODE"
 [ -x "$NODE" ] || NODE="$(command -v node || true)"   # dry run before the first install
 [ -n "$NODE" ] || fail "No Node.js to continue with."
 
+# 2b. EventKit helper.
+say "2b. EventKit helper for Calendar and Reminders"
+sha() { shasum -a 256 "$1" 2>/dev/null | cut -d" " -f1; }
+if [ "$(sha "$EVENT_DIR/event")" = "$EVENT_SHA256" ] && [ "$(sha "$EVENT_DIR/event-disclaim")" = "$DISCLAIM_SHA256" ]; then
+  ok "Already there (mcp-server-apple-events 1.5.0)"
+elif [ "$DRY" = 1 ]; then
+  warn "Would download the EventKit helper (dry run)."
+else
+  ETMP="$(mktemp -d)"
+  curl -fsSL -o "$ETMP/pkg.tgz" "$EVENT_PKG"
+  [ "sha512-$(openssl dgst -sha512 -binary "$ETMP/pkg.tgz" | base64)" = "$EVENT_INTEGRITY" ] || { rm -rf "$ETMP"; fail "The EventKit helper package does not match its pinned checksum; nothing was installed."; }
+  tar -xzf "$ETMP/pkg.tgz" -C "$ETMP" package/bin/event package/bin/event-disclaim
+  [ "$(sha "$ETMP/package/bin/event")" = "$EVENT_SHA256" ] && [ "$(sha "$ETMP/package/bin/event-disclaim")" = "$DISCLAIM_SHA256" ] || { rm -rf "$ETMP"; fail "An EventKit helper binary does not match its pinned hash."; }
+  mkdir -p "$EVENT_DIR"
+  cp "$ETMP/package/bin/event" "$ETMP/package/bin/event-disclaim" "$EVENT_DIR/"
+  chmod 755 "$EVENT_DIR/event" "$EVENT_DIR/event-disclaim"
+  xattr -d com.apple.quarantine "$EVENT_DIR/event" "$EVENT_DIR/event-disclaim" 2>/dev/null || true
+  rm -rf "$ETMP"
+  ok "Checksums verified; installed in vendor/eventkit"
+fi
+
 # 3. Kairos shortcuts. Shortcuts cannot be installed from the command line: each needs one
 #    "Add Shortcut" click. Duplicate names make them unusable, so check for those first.
 say "3. Kairos shortcuts for Notes"
@@ -120,34 +151,54 @@ fi
 # 4. Self test: the protocol only, reads no data.
 say "4. Self test"
 LISTED="$(printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}' '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
-  | KAIROS_APPS="$APPS" KAIROS_WRITE="notes" "$NODE" "$SERVER" 2>/dev/null)"
-for tool in notes_folders notes_list notes_search notes_read notes_create notes_append notes_replace; do
+  | KAIROS_APPS="$APPS" KAIROS_WRITE="$(tr ' ' ',' <<<"$WRITABLE_APPS")" "$NODE" "$SERVER" 2>/dev/null)"
+for tool in notes_folders notes_read notes_create calendar_calendars calendar_read calendar_create reminders_lists reminders_read reminders_create; do
   grep -q "\"$tool\"" <<<"$LISTED" || fail "The server did not list $tool. Output: ${LISTED:0:300}"
 done
-ok "Kairos answers and lists its Notes tools."
+ok "Kairos answers and lists its tools."
 
 # 5. Claude config: back it up, then write the kairos entry. Other entries stay as they are.
 say "5. Claude desktop config"
+# Which apps may write. Earlier answers are kept; only apps new since the last install are asked.
+desc() {
+  case "$1" in
+    notes) echo "create notes, add to them and replace their text" ;;
+    calendar) echo "create events, and change or delete them" ;;
+    reminders) echo "create reminders, and change, complete or delete them" ;;
+  esac
+}
+in_list() { [[ ",$2," == *",$1,"* ]]; }
 WRITE=""
+add_write() { WRITE="${WRITE:+$WRITE,}$1"; }
 if [ -n "$WRITE_ARG" ]; then
   case "$WRITE_ARG" in
-    notes) WRITE="notes" ;;
-    none) WRITE="" ;;
-    *) fail "--write takes notes or none." ;;
+    none) ;;
+    all) for app in $WRITABLE_APPS; do add_write "$app"; done ;;
+    *)
+      for app in $(tr ',' ' ' <<<"$WRITE_ARG"); do
+        in_list "$app" "$(tr ' ' ',' <<<"$WRITABLE_APPS")" || fail "--write takes a list of: $WRITABLE_APPS (or all, or none)."
+        add_write "$app"
+      done ;;
   esac
   ok "Write setting from --write: ${WRITE:-none}"
-elif [ -f "$CONFIG" ] && WRITE_NOW="$("$NODE" -e '
-  const c = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8") || "{}");
-  const k = c.mcpServers && c.mcpServers.kairos;
-  process.stdout.write(k && k.env && typeof k.env.KAIROS_WRITE === "string" ? k.env.KAIROS_WRITE : "");
-' "$CONFIG" 2>/dev/null)" && [ -n "$WRITE_NOW" ]; then
-  WRITE="$WRITE_NOW"
-  ok "Keeping your write setting: KAIROS_WRITE=$WRITE"
 else
-  echo "  Kairos reads Notes by default. It can also create notes, add to them and replace their"
-  echo "  text (always asking you first in the chat before changing or replacing anything)."
-  if ask "Allow Kairos to write to Notes? Type y and press Enter for yes, or just Enter for no."; then WRITE="notes"; fi
-  [ -n "$WRITE" ] || echo "  Read only. To allow writing later: ./install.sh --write notes"
+  PRIOR="$([ -f "$CONFIG" ] && "$NODE" -e '
+    const c = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8") || "{}");
+    const e = (c.mcpServers && c.mcpServers.kairos && c.mcpServers.kairos.env) || {};
+    process.stdout.write((e.KAIROS_APPS || "") + "|" + (e.KAIROS_WRITE || ""));
+  ' "$CONFIG" 2>/dev/null || true)"
+  PRIOR_APPS="${PRIOR%%|*}" PRIOR_WRITE="${PRIOR#*|}"
+  [ "$PRIOR" = "$PRIOR_APPS" ] && PRIOR_WRITE=""
+  echo "  Kairos always reads. Writing is switched on per app; Claude still asks you in the chat"
+  echo "  before it changes, completes or deletes anything."
+  for app in $WRITABLE_APPS; do
+    if in_list "$app" "$PRIOR_APPS"; then
+      if in_list "$app" "$PRIOR_WRITE"; then add_write "$app"; ok "$app: writing stays on"; else ok "$app: stays read only"; fi
+    elif ask "Allow Kairos to $(desc "$app")? Type y and Enter for yes, just Enter for no."; then
+      add_write "$app"
+    fi
+  done
+  echo "  To change this later: ./install.sh --write notes,calendar,reminders (or all, or none)"
 fi
 
 edit_config() {
@@ -180,6 +231,7 @@ fi
 
 say "Done. Left for you:"
 echo "  1. Quit Claude completely (Cmd+Q) and open it again. Closing the window is not enough."
-echo "  2. The first time Kairos reads Notes, macOS asks whether it may control Notes. Allow it."
+echo "  2. The first time Kairos reads Notes or lists calendars, macOS asks whether it may control"
+echo "     Notes or Calendar, and the EventKit helper asks for Calendars and Reminders. Allow them."
 echo "  3. The first time each Kairos shortcut runs, choose Always Allow for Notes."
 echo "  Kairos never needs Full Disk Access; leave it off."
