@@ -27,7 +27,7 @@ The GitHub repo (`itskylebrooks/kairos`) is public, and so is its full history. 
 - stdio only. Nothing listens on a port. No network calls at runtime.
 - Writes are opt in per app via `KAIROS_WRITE`. Mail never sends: drafts only.
 - Every tool carries correct annotations: `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint: false`.
-- Third party text (subscribed calendars, invites, emails, shared notes) is data, not instructions. Tool results mark where such text appears.
+- Third party text (subscribed calendars, invites, emails, shared notes) is data, not instructions. Tool results mark where such text appears (see "Safety core").
 - Never build AppleScript or JXA source by concatenating user text. Scripts are static; all input goes in as JSON through `argv` and is parsed inside the script with `JSON.parse(argv[0])`.
 - Spawn processes with `execFile` (no shell).
 
@@ -38,6 +38,7 @@ Only governs what Kairos' tools do for Claude; nothing here changes macOS or oth
 - Scripts: every JXA script is a module level `defineScript("<name>", `...`)` constant. The server (and `music-log.js`) seal the registry at startup, and `jxa()` runs only registered script objects, never a string. A test scans the source for violations.
 - Shared destinations: writes into something other people can read (shared Notes folders and notes for now) call `assertNotShared`, which refuses unless `allow_shared: true`; tool descriptions tell Claude to ask the user first. `notes_replace` refuses shared notes outright.
 - Two step changes: every tool that changes, completes or deletes existing data has a `preview` (enforced by `defineTool` for destructive tools). Without `confirmation` the server only runs the preview (same checks as the real change, no writes) and returns a summary plus a one time token, valid 10 minutes for exactly the same tool and arguments. The change runs only when the call repeats with that token. Tokens live in the server process. Creating things stays one step. Each app splits such tools into plan (checks, what will change), preview and do.
+- Known gaps (until our own EventKit helper): invitations from others in the user's own calendars and shared reminder lists are not marked `from_others`. Confirmation is enforced by Kairos as a second step, but whether the user said yes is up to Claude; the README advises keeping the Claude app's approval prompt for write tools.
 - Programs: `run()` / `runSync()` start only `/usr/bin/osascript`, `/usr/bin/shortcuts`, `/bin/launchctl` and the two EventKit helper binaries, never through a shell. The list is private to `run.js`.
 
 ## Architecture

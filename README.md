@@ -6,15 +6,29 @@ The point is care: Kairos reads by default, writes only where you allow it and o
 
 > Status: in development, tested on macOS 27 (Apple silicon). A release build is still to come.
 
-## Security model
+## Security
 
-- **No Full Disk Access, ever.** Kairos uses Apple's scripting and EventKit, which ask for each app separately.
+Everything below applies only to what Kairos' tools do for Claude. Kairos changes nothing in macOS or in other apps, and adds no background service except the Music play log you can opt into.
+
+**What Kairos guarantees by itself**, whatever Claude is told:
+
+- **No Full Disk Access, ever.** Kairos uses Apple's scripting and EventKit, which ask for each app separately. Mail data, for example, stays closed to it at the file level.
 - **One private Node binary.** The installer downloads the official Node.js 24 (checksum verified) into `runtime/`, so macOS permissions belong to that binary, not to a Node that other programs share.
 - **stdio only.** Nothing listens on a port, and Kairos makes no network calls while it runs.
-- **Writes are opt in per app.** Before changing, completing or deleting anything, Claude says what will change and waits for your yes. Changes go by id, never by title.
-- **Mail never sends.** Kairos can only save drafts; you review and send them yourself.
-- **Text from other people is data.** Emails, subscribed calendars, shared notes and similar text is marked so Claude does not follow instructions hidden in it, and invisible characters are removed from emails.
-- **No script injection.** Scripts are fixed; your input reaches them only as JSON data.
+- **Input never becomes code.** All scripts are fixed when Kairos starts and the registry is then sealed; your data reaches them only as JSON. Kairos can start only `osascript`, `shortcuts`, `launchctl` and its EventKit helper, never a shell.
+- **Writes are opt in per app** (`--write`). Without it, an app's write tools do not exist for Claude.
+- **Changes and deletes take two steps.** Any tool that changes, completes or deletes something first returns only a preview written by Kairos, plus a one time confirmation. The change happens only when Claude repeats the call with that confirmation, for exactly the same change, within 10 minutes. Creating things (events, reminders, notes, drafts) is one step.
+- **Mail never sends.** There is no send tool, and a test checks that no Mail script can send.
+- **No invitations.** Calendar events are created without attendees, so Kairos cannot send meeting invites.
+- **Shared places need consent.** Writing into a shared note or folder is refused unless you agreed, because other people can read it. Replacing a shared note is always refused.
+- **Text from other people is marked.** Emails not sent by you, events from read only calendars and shared notes come back flagged `from_others`, with invisible characters removed and their text fields listed as untrusted.
+- **Safety nets.** Notes are never deleted, `notes_replace` keeps a private backup, repeating events are never changed through Kairos, and no result can exceed 100,000 characters.
+
+**What depends on Claude:** following the rule that text from others is data, and asking you before answering a preview with a confirmation. Kairos makes this as hard to get wrong as it can (Claude never sees a change happen without a preview step), but it cannot tell whether *you* said yes.
+
+**Our advice:** leave the Claude app's approval prompt **on** for Kairos' write tools, and do not choose "Always allow" for them. That prompt is a second check that only you can answer.
+
+**Known limits:** invitations someone else sent into one of your own calendars, and reminder lists shared with you, are not marked as `from_others` yet, because the EventKit helper does not report organizers or sharing. Kairos' own EventKit helper (planned) will fix this.
 
 ## Requirements
 
