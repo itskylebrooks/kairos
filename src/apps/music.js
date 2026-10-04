@@ -1,10 +1,11 @@
 // Music tools (read only), through Music scripting. Music is never opened unless the caller
 // sets open_if_closed. Music keeps only each track's LAST play date and total play count,
 // not a play history.
-import { parseArgDate } from "../lib/dates.js";
+import { addDays, isBareDay, isoLocal, parseArgDate, startOfDay } from "../lib/dates.js";
 import { UserError } from "../lib/errors.js";
 import { jxa } from "../lib/osascript.js";
 import { clampInt } from "../lib/paging.js";
+import { LIMITS, coverage, loadLog, status, timeline, topPlays } from "../lib/playlog.js";
 import { READ, defineTool } from "../lib/tools.js";
 
 // One static program; the mode and options arrive as JSON in argv[0].
@@ -91,6 +92,51 @@ const musicPlaylists = ({ name, limit, open_if_closed } = {}) => (name
   ? music({ mode: "playlist", name: String(name), limit: clampInt(limit, 1, 5000, 200), open_if_closed: open(open_if_closed) })
   : music({ mode: "playlists", open_if_closed: open(open_if_closed) }));
 
+/* ---------- play log (history from saved snapshots; never touches Music) ---------- */
+
+const NOT_ON = "The Music play log has no snapshots yet. It is switched on by install.sh (question \"Keep a daily Music play log?\"); history starts with the first snapshot.";
+
+/** since/until arguments to a [from, to) range; a bare until date includes that day. */
+function range(since, until, defaultDays) {
+  const today = startOfDay(new Date());
+  const to = until ? (isBareDay(until) ? addDays(parseArgDate(until, "until"), 1) : parseArgDate(until, "until")) : addDays(today, 1);
+  const from = since ? parseArgDate(since, "since") : addDays(to, -defaultDays);
+  if (to <= from) throw new UserError("until must be after since.");
+  return { from, to };
+}
+
+function withCoverage(log, from, to, result) {
+  const inRange = (t) => t >= from.getTime() && t < to.getTime();
+  return {
+    range: { from: isoLocal(from), to: isoLocal(to) },
+    ...result,
+    coverage: { ...coverage(log.times, from.getTime(), to.getTime()), resets: log.anomalies.filter((a) => inRange(a.at)).length },
+    note: LIMITS,
+  };
+}
+
+async function musicHistoryStatus() {
+  const s = status();
+  return s.snapshots ? s : { ...s, message: NOT_ON };
+}
+
+async function musicHistoryTop({ since, until, group_by = "track", query, limit } = {}) {
+  const log = loadLog();
+  if (!log.times.length) throw new UserError(NOT_ON);
+  const { from, to } = range(since, until, 30);
+  const r = topPlays(log, { since: from.getTime(), until: to.getTime(), group_by, query, limit: clampInt(limit, 1, 500, 25) });
+  return withCoverage(log, from, to, { group_by, ...(query ? { query } : {}), total_plays: r.total_plays, count: r.count, items: r.items });
+}
+
+async function musicHistoryTimeline({ since, until, bucket = "day", query } = {}) {
+  const log = loadLog();
+  if (!log.times.length) throw new UserError(NOT_ON);
+  const { from, to } = range(since, until, bucket === "month" ? 365 : bucket === "week" ? 84 : 14);
+  if ((to - from) / 86400e3 > 3700) throw new UserError("The range is too long (ten years at most).");
+  const rows = timeline(log, { since: from.getTime(), until: to.getTime(), bucket, query });
+  return withCoverage(log, from, to, { bucket, ...(query ? { query } : {}), total_plays: rows.reduce((s, r) => s + (r.plays ?? 0), 0), periods: rows });
+}
+
 const OPEN = { type: "boolean", description: "Open Music if it is not running (default false)." };
 const LIMIT = { type: "integer", description: "Max tracks." };
 const DATE = { type: "string", description: "Date or local date-time, e.g. 2030-01-31 or 2030-01-31 18:00." };
@@ -103,7 +149,7 @@ export const tools = [
   }),
   defineTool({
     name: "music_played", app: "music", title: "Recently played", annotations: READ, handler: musicPlayed,
-    description: "Library tracks by when they were LAST played, newest first, for any period. Music stores only each track's last play date and total play count, so this is not a full play history: a track played twice in the period appears once.",
+    description: "Library tracks by when they were LAST played, newest first, for any period. Music stores only each track's last play date and total play count, so this is not a full play history: a track played twice in the period appears once. For plays per period (\"what did I listen to most in September\") use music_history_top when the play log is on.",
     inputSchema: { type: "object", additionalProperties: false, properties: { since: DATE, until: DATE, limit: LIMIT, open_if_closed: OPEN } },
   }),
   defineTool({
@@ -115,6 +161,36 @@ export const tools = [
     name: "music_search", app: "music", title: "Search music", annotations: READ, handler: musicSearch,
     description: "Search the Music library by song, artist or album (every word must match, accents ignored), with play counts and last played dates.",
     inputSchema: { type: "object", additionalProperties: false, required: ["query"], properties: { query: { type: "string" }, limit: LIMIT, open_if_closed: OPEN } },
+  }),
+  defineTool({
+    name: "music_history_status", app: "music", title: "Play log status", annotations: READ, handler: musicHistoryStatus,
+    description: "Whether the Music play log is on, since when it has data, the last snapshot and the last check. The play log saves play counts several times a day, so history exists only from its first snapshot on.",
+    inputSchema: { type: "object", additionalProperties: false, properties: {} },
+  }),
+  defineTool({
+    name: "music_history_top", app: "music", title: "Most played in a period", annotations: READ, handler: musicHistoryTop,
+    description: "From the Music play log: most played tracks, artists or albums between since and until (a bare until date includes that day; default the last 30 days), optionally filtered by query (track, artist or album words). Answers \"what did I listen to yesterday\" or \"most played artists in September\". Read coverage: plays before logging started or during gaps are unknown.",
+    inputSchema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        since: DATE, until: DATE,
+        group_by: { type: "string", enum: ["track", "artist", "album"], description: "Default track." },
+        query: { type: "string", description: "Only tracks whose name, artist or album contain these words." },
+        limit: { type: "integer", description: "Max rows (default 25)." },
+      },
+    },
+  }),
+  defineTool({
+    name: "music_history_timeline", app: "music", title: "Plays over time", annotations: READ, handler: musicHistoryTimeline,
+    description: "From the Music play log: plays per day, week (starting Monday) or month between since and until, optionally for one track, artist or album (query). Periods outside the logged span have plays: null (unknown), not 0.",
+    inputSchema: {
+      type: "object", additionalProperties: false,
+      properties: {
+        since: DATE, until: DATE,
+        bucket: { type: "string", enum: ["day", "week", "month"], description: "Default day." },
+        query: { type: "string", description: "Only tracks whose name, artist or album contain these words." },
+      },
+    },
   }),
   defineTool({
     name: "music_playlists", app: "music", title: "Playlists", annotations: READ, handler: musicPlaylists,

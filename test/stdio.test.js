@@ -28,7 +28,7 @@ test("initialize, tools/list, then a clean exit when stdin closes", async () => 
   const byId = Object.fromEntries(messages.map((m) => [m.id, m]));
   assert.equal(messages.length, 2);
   assert.equal(byId[1].result.protocolVersion, "2025-11-25");
-  assert.deepEqual(byId[2].result.tools.map((t) => t.name).sort(), ["calendar_calendars", "calendar_read", "contacts_birthdays", "contacts_search", "music_now", "music_played", "music_playlists", "music_search", "music_top", "notes_folders", "notes_list", "notes_read", "notes_search", "reminders_lists", "reminders_read"]);
+  assert.deepEqual(byId[2].result.tools.map((t) => t.name).sort(), ["calendar_calendars", "calendar_read", "contacts_birthdays", "contacts_search", "music_history_status", "music_history_timeline", "music_history_top", "music_now", "music_played", "music_playlists", "music_search", "music_top", "notes_folders", "notes_list", "notes_read", "notes_search", "reminders_lists", "reminders_read"]);
   assert.match(err, /\[kairos\] v\d/);
 });
 
