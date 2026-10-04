@@ -24,9 +24,12 @@ export const DELETE = Object.freeze({ readOnlyHint: false, destructiveHint: true
  * @property {string} description
  * @property {object} inputSchema
  * @property {Annotations} annotations
- * @property {(args: any) => Promise<any> | any} handler
- * @property {(args: any) => Promise<{ summary: string }>} [preview]  makes the tool two step (see lib/safety.js)
+ * @property {(args: any, ctx?: { config: Config }) => Promise<any> | any} handler
+ * @property {(args: any, ctx?: { config: Config }) => Promise<{ summary: string }>} [preview]  makes the tool two step (see lib/safety.js)
  */
+
+/** Pseudo app of Kairos' own tools (kairos_activity, kairos_undo); always on, not in KAIROS_APPS. */
+export const CORE_APP = "kairos";
 
 const CONFIRMATION = { type: "string", description: "Leave out on the first call, which only previews. After the user said yes to the preview, repeat the call with the confirmation it returned." };
 
@@ -40,7 +43,7 @@ const HINTS = ["readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHi
 export function defineTool(t) {
   const bad = (why) => { throw new Error(`Tool ${t && t.name}: ${why}`); };
   if (!t || typeof t.name !== "string" || !/^[a-z]+(_[a-z0-9]+)+$/.test(t.name)) bad("name must be snake_case like notes_list");
-  if (!APPS.includes(t.app)) bad(`unknown app "${t.app}"`);
+  if (!APPS.includes(t.app) && t.app !== CORE_APP) bad(`unknown app "${t.app}"`);
   if (!t.name.startsWith(t.app + "_")) bad(`name must start with "${t.app}_"`);
   if (!t.title || typeof t.title !== "string") bad("title is required");
   if (!t.description || typeof t.description !== "string") bad("description is required");
@@ -64,7 +67,11 @@ export function defineTool(t) {
  * @param {Config} config
  */
 export function selectTools(tools, config) {
-  return tools.filter((t) => config.apps.has(t.app) && (t.annotations.readOnlyHint || config.write.has(t.app)));
+  return tools.filter((t) => {
+    // Kairos' own tools (activity log, undo): reading always; undo only when some app may write.
+    if (t.app === CORE_APP) return t.annotations.readOnlyHint || config.write.size > 0;
+    return config.apps.has(t.app) && (t.annotations.readOnlyHint || config.write.has(t.app));
+  });
 }
 
 /** @param {Tool} t  the shape sent in tools/list */

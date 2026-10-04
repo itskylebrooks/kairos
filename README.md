@@ -22,7 +22,8 @@ Everything below applies only to what Kairos' tools do for Claude. Kairos change
 - **No invitations.** Calendar events are created without attendees, so Kairos cannot send meeting invites.
 - **Shared places need consent.** Writing into a shared note or folder is refused unless you agreed, because other people can read it. Replacing a shared note is always refused.
 - **Text from other people is marked.** Emails not sent by you, events from read only calendars and shared notes come back flagged `from_others`, with invisible characters removed and their text fields listed as untrusted.
-- **Safety nets.** Notes are never deleted, `notes_replace` keeps a private backup, repeating events are never changed through Kairos, and no result can exceed 100,000 characters.
+- **Every change is logged and can be undone.** See "Activity log and undo" below.
+- **Safety nets.** Notes are never deleted (undoing a note Kairos created moves it to Recently Deleted), `notes_replace` keeps a private backup, repeating events are never changed through Kairos, and no result can exceed 100,000 characters.
 
 **What depends on Claude:** following the rule that text from others is data, and asking you before answering a preview with a confirmation. Kairos makes this as hard to get wrong as it can (Claude never sees a change happen without a preview step), but it cannot tell whether *you* said yes.
 
@@ -85,6 +86,7 @@ If a Shortcuts window ever asks you to **pick a note or type text**, click **Can
 | Notes | `notes_folders`, `notes_list`, `notes_search`, `notes_read` | `notes_create`, `notes_append`, `notes_replace` |
 | Mail | `mail_mailboxes`, `mail_unread`, `mail_search`, `mail_read` | `mail_create_draft` (never sends) |
 | Music | `music_now`, `music_played`, `music_top`, `music_search`, `music_playlists`, `music_history_status`, `music_history_top`, `music_history_timeline` | none |
+| Kairos | `kairos_activity` | `kairos_undo` (when any app may write) |
 
 Limits worth knowing:
 
@@ -92,6 +94,14 @@ Limits worth knowing:
 - **Clearing a field** (an event's location, a reminder's notes) is not possible yet; replacing it with new text is.
 - **Mail** must be running (Kairos never opens it). Search looks at subject, sender and recipients within a date range (default the last 30 days), not inside message bodies, and leaves out trash and junk unless asked. Reading returns plain text without quoted history and signatures, in parts of 8,000 characters. Creating a draft shows a Mail window for a moment; replies keep the conversation thread and quote the original.
 - **Notes** are written through Shortcuts so Notes itself turns Markdown into real headings, checklists and tables. Block quotes and inline code lose their styling. Kairos only changes notes whose title is unique, and `notes_replace` keeps a private backup of the old text in `~/Library/Application Support/Kairos/backups/notes/`. Writing into a shared note or folder needs your explicit agreement, since other people can read it; replacing a shared note is refused. Long notes are read in parts.
+
+## Activity log and undo
+
+Kairos keeps a private log of every change it makes for Claude: what, when, and the state before and after. Ask Claude "what did you change this week?" (`kairos_activity`) or "undo that" (`kairos_undo`).
+
+- **Undo is careful.** It shows a preview and needs your yes, like every change. It is refused when the item was changed after Kairos' change, so it never overwrites your own later edits, and an older change waits until later changes to the same item are undone.
+- **What can be undone:** created events and reminders are deleted again, changed ones get their earlier values back, deleted ones are recreated (with a new id; event alerts are not restored), completed reminders are reopened, notes Kairos added to or replaced get their earlier text back from the private backup, and a note Kairos created moves to Recently Deleted. Mail drafts are not undone (delete them in Mail), and changes the EventKit helper cannot reverse (clearing a field that was empty before) say why.
+- **Private and short lived:** the log lives in `~/Library/Application Support/Kairos/activity/`, readable only by you, and keeps 90 days. It lists only changes made through Kairos, never edits you make in the apps.
 
 ## Music play log
 

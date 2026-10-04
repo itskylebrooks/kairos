@@ -361,14 +361,20 @@ async function mailCreateDraft({ to, cc, subject, body = "", reply_to_id, reply_
     const content = quote ? `${text}\n\n${quoteFor(m)}` : text;
     const r = await mail(JXA_DRAFT_REPLY, { ...k, body: content, reply_all: !!reply_all }, 60000);
     if (!r.found) throw new UserError(`No message with id ${reply_to_id}.`);
-    return { saved_to: "Drafts", subject: r.subject, reply_to: reply_to_id, reply_all: !!reply_all, quoted: !!quote, sent: false, note: "Saved as a draft in Mail. Nothing was sent: the user reviews and sends it." };
+    return {
+      saved_to: "Drafts", subject: r.subject, reply_to: reply_to_id, reply_all: !!reply_all, quoted: !!quote, sent: false, note: "Saved as a draft in Mail. Nothing was sent: the user reviews and sends it.",
+      _journal: { action: "draft", target: { kind: "draft", id: null, title: r.subject }, summary: `Saved a reply draft "${r.subject}" in Mail (not sent).`, before: null, after: { subject: r.subject, reply_to: reply_to_id }, undo: { possible: false, reason: "Delete the draft in Mail if you do not want it." } },
+    };
   }
   const toList = emailList(to, "to"), ccList = emailList(cc, "cc");
   const subj = clean(subject ?? "").trim();
   if (!subj && !text) throw new UserError("A new draft needs a subject or a body.");
   if (from !== undefined) emailList(from, "from");
   await mail(JXA_DRAFT_NEW, { to: toList, cc: ccList, subject: subj, body: text, from: from ?? null }, 60000);
-  return { saved_to: "Drafts", subject: subj, to: toList, cc: ccList, sent: false, note: "Saved as a draft in Mail. Nothing was sent: the user reviews and sends it." };
+  return {
+    saved_to: "Drafts", subject: subj, to: toList, cc: ccList, sent: false, note: "Saved as a draft in Mail. Nothing was sent: the user reviews and sends it.",
+    _journal: { action: "draft", target: { kind: "draft", id: null, title: subj }, summary: `Saved a draft "${subj}" to ${toList.join(", ") || "no recipient yet"} in Mail (not sent).`, before: null, after: { subject: subj, to: toList, cc: ccList }, undo: { possible: false, reason: "Delete the draft in Mail if you do not want it." } },
+  };
 }
 
 /* ================= tool definitions ================= */

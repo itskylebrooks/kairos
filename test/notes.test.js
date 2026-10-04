@@ -169,7 +169,7 @@ test("append: a copy in Recently Deleted does not count against uniqueness", asy
   setFakeFixtures(fx);
   const r = await call("notes_append", { id: N(10), markdown: "\n- [ ] more\n" });
   assert.equal(r.appended, true);
-  assert.deepEqual(fx.calls.shortcuts[0].input, { name: "Ada's café list", markdown: "- [ ] more" });
+  assert.deepEqual(fx.calls.shortcuts.find((c) => c.name === "Kairos Notes Append").input, { name: "Ada's café list", markdown: "- [ ] more" });
 });
 
 test("append: when the shortcut's own guard finds no single match, nothing is claimed", async () => {

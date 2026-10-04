@@ -37,22 +37,22 @@ test("VERSION matches package.json", () => {
 
 test("by default only read tools are listed; writes need KAIROS_WRITE", async () => {
   const names = async (env) => new Set((await createServer({ config: cfg(env) }).handle({ jsonrpc: "2.0", id: 1, method: "tools/list" })).result.tools.map((t) => t.name));
-  const READS = ["calendar_calendars", "calendar_read", "reminders_lists", "reminders_read", "contacts_search", "contacts_birthdays", "notes_folders", "notes_list", "notes_search", "notes_read", "music_now", "music_played", "music_top", "music_search", "music_history_status", "music_history_top", "music_history_timeline", "music_playlists", "mail_mailboxes", "mail_unread", "mail_search", "mail_read"];
+  const READS = ["calendar_calendars", "calendar_read", "reminders_lists", "reminders_read", "contacts_search", "contacts_birthdays", "notes_folders", "notes_list", "notes_search", "notes_read", "music_now", "music_played", "music_top", "music_search", "music_history_status", "music_history_top", "music_history_timeline", "music_playlists", "mail_mailboxes", "mail_unread", "mail_search", "mail_read", "kairos_activity"];
   assert.deepEqual(await names({}), new Set(READS));
-  assert.deepEqual(await names({ KAIROS_APPS: "notes", KAIROS_WRITE: "notes" }), new Set(["notes_folders", "notes_list", "notes_search", "notes_read", "notes_create", "notes_append", "notes_replace"]));
+  assert.deepEqual(await names({ KAIROS_APPS: "notes", KAIROS_WRITE: "notes" }), new Set(["notes_folders", "notes_list", "notes_search", "notes_read", "notes_create", "notes_append", "notes_replace", "kairos_activity", "kairos_undo"]));
   const all = await names({ KAIROS_WRITE: "calendar,reminders,notes,mail" });
   for (const t of ["calendar_create", "calendar_update", "calendar_delete", "reminders_create", "reminders_update", "reminders_complete", "reminders_delete", "mail_create_draft"]) assert.ok(all.has(t), t);
-  assert.deepEqual(await names({ KAIROS_APPS: "messages" }), new Set());
+  assert.deepEqual(await names({ KAIROS_APPS: "messages" }), new Set(["kairos_activity"]), "the activity log is always there; undo only when something may write");
   assert.ok(ALL_TOOLS.every((t) => t.annotations.openWorldHint === false));
 });
 
 test("annotations: reads are read only, deletes and updates destructive, creates additive", () => {
   const a = Object.fromEntries(ALL_TOOLS.map((t) => [t.name, t.annotations]));
   for (const [name, x] of Object.entries(a)) {
-    if (/_(read|list|lists|folders|search|calendars|birthdays|now|played|top|playlists|status|timeline|mailboxes|unread)$/.test(name)) assert.equal(x.readOnlyHint, true, name);
+    if (/_(read|list|lists|folders|search|calendars|birthdays|now|played|top|playlists|status|timeline|mailboxes|unread|activity)$/.test(name)) assert.equal(x.readOnlyHint, true, name);
     else assert.equal(x.readOnlyHint, false, name);
   }
-  for (const n of ["calendar_delete", "reminders_delete", "calendar_update", "reminders_update", "notes_replace"]) assert.equal(a[n].destructiveHint, true, n);
+  for (const n of ["calendar_delete", "reminders_delete", "calendar_update", "reminders_update", "notes_replace", "kairos_undo"]) assert.equal(a[n].destructiveHint, true, n);
   for (const n of ["calendar_create", "reminders_create", "notes_create", "notes_append", "reminders_complete", "mail_create_draft"]) assert.equal(a[n].destructiveHint, false, n);
   for (const n of ["calendar_create", "reminders_create", "notes_create", "notes_append"]) assert.equal(a[n].idempotentHint, false, n);
 });
@@ -168,7 +168,9 @@ test("first call previews and changes nothing; the token confirms exactly that c
   assert.deepEqual(done, []);
 
   const p2 = (await call({ id: "N1" })).structuredContent;
-  assert.deepEqual((await call({ id: "N1", confirmation: p2.confirmation })).structuredContent, { wiped: "N1" });
+  const done1 = (await call({ id: "N1", confirmation: p2.confirmation })).structuredContent;
+  assert.equal(done1.wiped, "N1");
+  assert.match(done1.activity_id, /^act-/, "every change is logged");
   assert.deepEqual(done, ["N1"]);
   const again = await call({ id: "N1", confirmation: p2.confirmation });
   assert.match(again.content[0].text, /already used/);

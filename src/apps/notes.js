@@ -2,13 +2,14 @@
 // Writes go through Kairos' own shortcuts, so Notes parses Markdown into real formatting
 // (docs/notes-spike.md). Every write is guarded so it can only reach the intended note.
 import { createHash } from "node:crypto";
-import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isoLocal, parseArgDate } from "../lib/dates.js";
 import { UserError } from "../lib/errors.js";
 import { defineScript, jxa } from "../lib/osascript.js";
 import { dataDir } from "../lib/paths.js";
 import { clampInt } from "../lib/paging.js";
+import { registerUndo } from "../lib/activity.js";
 import { assertNotShared } from "../lib/safety.js";
 import { runShortcut } from "../lib/shortcuts.js";
 import { fold } from "../lib/text.js";
@@ -111,6 +112,16 @@ function run(argv) {
   n.body = "";
   n.name = o.name;
   return JSON.stringify({ name: n.name() });
+}`);
+
+// Moves a note to Recently Deleted (recoverable there for 30 days). Used only to undo a note
+// Kairos itself created, and only while it is unchanged since.
+const JXA_TRASH = defineScript("notes.trash", `
+function run(argv) {
+  const o = JSON.parse(argv[0]);
+  const N = Application("Notes");
+  N.delete(N.notes.byId(o.id));
+  return JSON.stringify({ ok: true });
 }`);
 
 const JXA_MOVE = defineScript("notes.move", `
@@ -252,6 +263,21 @@ function checkTitle(title) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Waits until the note's last change is SETTLE_MS old. Writing a note by script right after
+ * Notes finished a Shortcuts write jams Notes (verified on macOS 27: the script hangs, and the
+ * note refuses script writes until Notes restarts).
+ */
+const SETTLE_MS = 4000;
+async function settleNote(id) {
+  const n = await getNote(id);
+  const age = Date.now() - Date.parse(n.modified);
+  if (age >= 0 && age < SETTLE_MS) await sleep(SETTLE_MS - age); // a future date (clock skew) is not "just written"
+}
+
+/** Script writes to a note: a short timeout, so a stuck Notes is noticed quickly. */
+const WRITE_TIMEOUT_MS = 20000;
 
 /** Polls fn until it returns a truthy value or the time is up. */
 async function waitFor(fn, ms = 6000, step = 400) {
@@ -417,7 +443,13 @@ async function notesCreate({ title, markdown = "", folder, allow_shared } = {}) 
 
   const n = await getNote(found.id);
   const { byId } = await folderTree({ fresh: true });
-  return summary(n, byId);
+  return {
+    ...summary(n, byId),
+    _journal: {
+      action: "create", target: { kind: "note", id: n.id, title: n.name }, summary: `Created the note "${n.name}" in ${byId.get(n.folder)?.path ?? "Notes"}.`,
+      before: null, after: { id: n.id, title: n.name, folder: n.folder, modified: n.modified }, undo: { possible: true },
+    },
+  };
 }
 
 /** Checks shared by append and replace: the note exists, is live, unlocked, uniquely named. */
@@ -443,13 +475,73 @@ async function appendGuarded(name, markdown) {
 async function notesAppend({ id, markdown, allow_shared } = {}) {
   const md = checkMarkdownInput(markdown).replace(/^\n+|\n+$/g, "");
   if (!md.trim()) throw new UserError("markdown must not be empty.");
-  const n = await writableNote(id);
+  const n = await writableNote(id, { body: true });
   const folderShared = !!(await folderTree()).byId.get(n.folder)?.shared;
   assertNotShared(n.shared || folderShared, allow_shared, `The note "${n.name}"`);
+  // The text before the append is kept, so the append can be undone.
+  const old = await readMarkdown(n);
+  const backup = writeBackup(n, old);
   await appendGuarded(n.name, md);
   const after = await waitFor(async () => { const x = await getNote(id); return x.modified !== n.modified ? x : null; }, 5000);
   const { byId } = await folderTree();
-  return { appended: true, characters: md.length, ...summary(after || n, byId) };
+  return {
+    appended: true, characters: md.length, ...summary(after || n, byId),
+    _journal: {
+      action: "append", target: { kind: "note", id, title: n.name }, summary: `Added ${md.length} characters to the note "${n.name}".`,
+      before: { title: n.name, backup }, after: { id, title: (after || n).name, modified: (after || n).modified },
+      undo: restorable(n, old),
+    },
+  };
+}
+
+/** Whether a note can be put back from its backup through notes_replace. */
+function restorable(n, old) {
+  if (n.shared) return { possible: false, reason: "The note is shared; Kairos does not rewrite shared notes." };
+  if (realAttachments(n).length) return { possible: false, reason: "The note has attachments, which cannot be rebuilt from text." };
+  if (old.checklists === "unknown") return { possible: false, reason: "Its checklist ticks could not be read, so restoring would lose them. The old text is in the backup." };
+  return { possible: true };
+}
+
+/** Refuses when the note is gone or was changed after Kairos' change. */
+async function noteUnchangedSince(entry) {
+  let n;
+  try { n = await getNote(entry.after.id); } catch { throw new UserError(`The note "${entry.after.title}" no longer exists.`); }
+  if ((await folderTree()).byId.get(n.folder)?.deleted) throw new UserError(`The note "${n.name}" is in Recently Deleted.`);
+  if (Math.abs(Date.parse(n.modified) - Date.parse(entry.after.modified)) >= 1000) {
+    throw new UserError(`The note "${n.name}" was changed after Kairos' change, so undoing would overwrite those later edits.`);
+  }
+  return n;
+}
+
+function readBackup(file) {
+  if (!file || !existsSync(file)) throw new UserError("The backup of the earlier text is gone, so this change cannot be undone.");
+  return JSON.parse(readFileSync(file, "utf8"));
+}
+
+registerUndo("notes", "create", {
+  async preview(e) { await noteUnchangedSince(e); return { summary: `Move the note "${e.after.title}" that Kairos created to Recently Deleted (recoverable there for 30 days).` }; },
+  async run(e) {
+    await noteUnchangedSince(e);
+    await settleNote(e.after.id);
+    await notesJxa(JXA_TRASH, { id: e.after.id }, WRITE_TIMEOUT_MS);
+    return { result: { moved_to: "Recently Deleted", id: e.after.id, title: e.after.title }, journal: { action: "trash", target: { kind: "note", id: e.after.id, title: e.after.title }, summary: `Moved "${e.after.title}" to Recently Deleted (undo of its creation).`, before: e.after, after: null } };
+  },
+});
+
+for (const action of ["append", "replace"]) {
+  registerUndo("notes", action, {
+    async preview(e) {
+      await noteUnchangedSince(e);
+      const b = readBackup(e.before.backup);
+      return { summary: `Restore the note "${e.after.title}" to its text from before Kairos' ${action === "append" ? "addition" : "replacement"}${b.title !== e.after.title ? `, with its old title "${b.title}"` : ""} (${b.markdown.length} characters of Markdown).` };
+    },
+    async run(e) {
+      const n = await noteUnchangedSince(e);
+      const b = readBackup(e.before.backup);
+      const r = await notesReplace({ id: e.after.id, markdown: b.markdown, title: b.title, expected_modified: n.modified });
+      return { result: r, journal: { action: "replace", target: { kind: "note", id: e.after.id, title: b.title }, summary: `Restored "${b.title}" to its earlier text (undo of a ${action}).`, before: { title: e.after.title, backup: r.backup }, after: { id: e.after.id, title: r.title, modified: r._modified } } };
+    },
+  });
 }
 
 /** Every check notes_replace makes, without writing. */
@@ -492,7 +584,8 @@ async function notesReplace(a = {}) {
 
   // Empty the note (keeping its title as name), then let Notes build title and body from Markdown.
   const rebuild = async (t, md) => {
-    await notesJxa(JXA_CLEAR, { id, name: t });
+    await settleNote(id);
+    await notesJxa(JXA_CLEAR, { id, name: t }, WRITE_TIMEOUT_MS);
     // Shortcuts' index learns a new title a few seconds later; write only once it does.
     if (t !== n.name || t !== newTitle) {
       const seen = await waitFor(async () => /^matches: 1\b/.test(await runShortcut(SHORTCUT_READ, { name: t })), 15000, 1000);
@@ -505,8 +598,11 @@ async function notesReplace(a = {}) {
       await rebuild(n.name, old.markdown);
       return `${why} The previous text was written back${old.checklists === "unknown" ? " (checklist ticks may be lost)" : ""}. A copy is in ${backup}.`;
     } catch (e) {
-      try { await notesJxa(JXA_SET_BODY, { id, html: n.body }); } catch {}
-      return `${why} Restoring the previous text through Shortcuts also failed (${e.message}); the old HTML was put back, which may lose checklists. A full copy is in ${backup}.`;
+      let putBack = false;
+      try { await notesJxa(JXA_SET_BODY, { id, html: n.body }, WRITE_TIMEOUT_MS); putBack = true; } catch {}
+      return putBack
+        ? `${why} Restoring the previous text through Shortcuts also failed (${e.message}); the old HTML was put back instead, which may lose checklists. A full copy is in ${backup}.`
+        : `${why} Restoring the previous text also failed (${e.message}), and Notes did not accept the old text either: the note may be empty or incomplete now. Notes may be stuck: quit and reopen Notes. The full previous text is saved in ${backup}.`;
     }
   };
 
@@ -526,7 +622,14 @@ async function notesReplace(a = {}) {
   if (!after) throw new UserError(await restore("The new text did not show up in the note."));
 
   const { byId } = await folderTree();
-  return { replaced: true, backup, ...summary(after, byId) };
+  return {
+    replaced: true, backup, ...summary(after, byId), _modified: after.modified,
+    _journal: {
+      action: "replace", target: { kind: "note", id, title: after.name }, summary: `Replaced the text of "${n.name}"${after.name !== n.name ? ` and renamed it to "${after.name}"` : ""}.`,
+      before: { title: n.name, backup }, after: { id, title: after.name, modified: after.modified },
+      undo: restorable(n, old),
+    },
+  };
 }
 
 /* ================= tool definitions ================= */

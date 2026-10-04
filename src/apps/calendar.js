@@ -6,6 +6,7 @@
 // update or delete repeating events rather than change the wrong occurrence.
 import { WEEKDAYS, addDays, ekStamp, isBareDay, localDay, localStamp, parseArgDate, parseEkDate, startOfDay } from "../lib/dates.js";
 import { UserError } from "../lib/errors.js";
+import { registerUndo } from "../lib/activity.js";
 import { eventkit } from "../lib/eventkit.js";
 import { defineScript, jxa } from "../lib/osascript.js";
 import { clampInt } from "../lib/paging.js";
@@ -180,6 +181,76 @@ const opt = (args, flag, v) => {
   args.push(`--${flag}=${v}`);
 };
 
+/* ---------- activity log: machine readable state, journals, undo ---------- */
+
+/** An event as the log stores it: times in the form the tools accept (all day end inclusive). */
+export function eventState(raw) {
+  const e = mapEvent(raw, null);
+  const day = e.all_day;
+  const fmt = (d) => (d ? (day ? localDay(d) : localStamp(d)) : null);
+  return { id: e.id, title: e.title, calendar: e.calendar, all_day: day, start: fmt(e._s), end: fmt(e._e ?? e._s), location: e.location, notes: e.notes, recurring: e.recurring };
+}
+
+const SAME = ["title", "calendar", "all_day", "start", "end", "location", "notes"];
+const sameEvent = (a, b) => SAME.every((k) => (a?.[k] ?? null) === (b?.[k] ?? null));
+const when = (st) => `${st.start}${st.end && st.end !== st.start ? ` to ${st.end}` : ""}`;
+
+/** Fields the helper cannot clear: undoing a change that filled them in is impossible. */
+function cannotRestore(before, after) {
+  return ["location", "notes"].filter((k) => !before[k] && after[k]);
+}
+
+async function current(id) {
+  try { return eventState((await findEvent(id)).raw); } catch { return null; }
+}
+
+/** Refuses when the event is gone or was changed since Kairos left it. */
+async function unchangedSince(entry) {
+  const now = await current(entry.after.id);
+  if (!now) throw new UserError(`The event "${entry.after.title}" no longer exists.`);
+  if (!sameEvent(now, entry.after)) throw new UserError(`The event "${entry.after.title}" was changed after Kairos' change, so undoing would overwrite those later edits. Change it in Calendar instead.`);
+  return now;
+}
+
+registerUndo("calendar", "create", {
+  async preview(e) { await unchangedSince(e); return { summary: `Delete the event "${e.after.title}" (${when(e.after)}, calendar "${e.after.calendar}") that Kairos created.` }; },
+  async run(e) {
+    await unchangedSince(e);
+    const r = await calendarDelete({ id: e.after.id });
+    return { result: r, journal: { action: "delete", target: { kind: "event", id: e.after.id, title: e.after.title }, summary: `Deleted "${e.after.title}" (undo of its creation).`, before: e.after, after: null } };
+  },
+});
+
+registerUndo("calendar", "update", {
+  async preview(e) {
+    await unchangedSince(e);
+    return { summary: `Change "${e.after.title}" back: ${SAME.filter((k) => (e.before[k] ?? null) !== (e.after[k] ?? null)).map((k) => `${k} from ${JSON.stringify(e.after[k])} to ${JSON.stringify(e.before[k])}`).join("; ")}.` };
+  },
+  async run(e) {
+    await unchangedSince(e);
+    const b = e.before, a = e.after;
+    const args = { id: a.id };
+    if (b.title !== a.title) args.title = b.title;
+    if (b.start !== a.start || b.end !== a.end) Object.assign(args, { start: b.start, end: b.end });
+    if (b.location !== a.location) args.location = b.location;
+    if (b.notes !== a.notes) args.notes = b.notes;
+    const r = await calendarUpdate(args);
+    return { result: r, journal: { action: "update", target: { kind: "event", id: a.id, title: b.title }, summary: `Changed "${a.title}" back to how it was.`, before: a, after: eventState(r._raw) } };
+  },
+});
+
+registerUndo("calendar", "delete", {
+  async preview(e) {
+    await writableCalendar(e.before.calendar);
+    return { summary: `Recreate "${e.before.title}" (${when(e.before)}) in calendar "${e.before.calendar}". It comes back as a new event with a new id; alerts are not restored.` };
+  },
+  async run(e) {
+    const b = e.before;
+    const r = await calendarCreate({ title: b.title, start: b.start, end: b.end, calendar: b.calendar, location: b.location ?? undefined, notes: b.notes ?? undefined });
+    return { result: r, journal: { action: "create", target: { kind: "event", id: r.created.id, title: b.title }, summary: `Recreated "${b.title}" (undo of its deletion).`, before: null, after: eventState(r._raw) } };
+  },
+});
+
 async function calendarCreate({ title, start, end, calendar, location, notes } = {}) {
   const t = String(title ?? "").trim();
   if (!t) throw new UserError("title is required.");
@@ -191,7 +262,12 @@ async function calendarCreate({ title, start, end, calendar, location, notes } =
   opt(args, "notes", notes);
   args.push("--json");
   const created = await eventkit(args);
-  return { created: strip(mapEvent(created, null)) };
+  const after = eventState(created);
+  return {
+    created: strip(mapEvent(created, null)),
+    _raw: created,
+    _journal: { action: "create", target: { kind: "event", id: after.id, title: after.title }, summary: `Created "${after.title}" (${when(after)}, calendar "${after.calendar}").`, before: null, after, undo: { possible: true } },
+  };
 }
 
 function refuseRecurring(raw, what) {
@@ -218,6 +294,7 @@ async function planUpdate({ id, title, start, end, location, notes } = {}) {
   if (readOnly && readOnly.has(raw.calendar)) throw new UserError(`"${raw.title}" is in the read only calendar "${raw.calendar}".`);
   const before = strip(mapEvent(raw, readOnly));
   const args = ["calendar", "update", `--id=${id}`];
+  const rawBefore = raw;
   const changes = [];
   if (title !== undefined) {
     const t = String(title).trim();
@@ -246,13 +323,24 @@ async function planUpdate({ id, title, start, end, location, notes } = {}) {
   if (notes !== undefined) changes.push({ field: "notes", from: before.notes, to: notes });
   if (!changes.length) throw new UserError("Nothing to change: pass at least one of title, start, end, location, notes.");
   args.push("--json");
-  return { before, readOnly, args, changes };
+  return { before, readOnly, args, changes, raw: rawBefore };
 }
 
 async function calendarUpdate(a = {}) {
   const p = await planUpdate(a);
-  const after = await eventkit(p.args);
-  return { updated: strip(mapEvent(after, p.readOnly)), before: p.before };
+  const raw = await eventkit(p.args);
+  const before = eventState(p.raw), after = eventState(raw);
+  const stuck = cannotRestore(before, after);
+  return {
+    updated: strip(mapEvent(raw, p.readOnly)), before: p.before,
+    _raw: raw,
+    _journal: {
+      action: "update", target: { kind: "event", id: after.id, title: after.title },
+      summary: `Changed "${before.title}": ${p.changes.map((c) => `${c.field} from ${JSON.stringify(c.from)} to ${JSON.stringify(c.to)}`).join("; ")}.`,
+      before, after,
+      undo: stuck.length ? { possible: false, reason: `The ${stuck.join(" and ")} was empty before, and the EventKit helper cannot clear it again.` } : { possible: true },
+    },
+  };
 }
 
 async function previewUpdate(a = {}) {
@@ -265,13 +353,17 @@ async function planDelete({ id } = {}) {
   refuseRecurring(raw, "delete");
   const readOnly = await readOnlyNames();
   if (readOnly && readOnly.has(raw.calendar)) throw new UserError(`"${raw.title}" is in the read only calendar "${raw.calendar}".`);
-  return { before: strip(mapEvent(raw, readOnly)) };
+  return { before: strip(mapEvent(raw, readOnly)), raw };
 }
 
 async function calendarDelete({ id } = {}) {
   const p = await planDelete({ id });
   await eventkit(["calendar", "delete", `--id=${id}`], { json: false });
-  return { deleted: p.before };
+  const before = eventState(p.raw);
+  return {
+    deleted: p.before,
+    _journal: { action: "delete", target: { kind: "event", id, title: before.title }, summary: `Deleted "${before.title}" (${when(before)}, calendar "${before.calendar}").`, before, after: null, undo: { possible: true } },
+  };
 }
 
 async function previewDelete({ id } = {}) {
