@@ -17,7 +17,7 @@ NODE_DIST="https://nodejs.org/dist/latest-v24.x"
 SERVER="$DIR/src/server.js"
 SHORTCUTS_DIR="$DIR/build/shortcuts"
 NOTES_SHORTCUTS=("Kairos Notes Create" "Kairos Notes Append" "Kairos Notes Read")
-APPS="notes,calendar,reminders"   # apps built so far
+APPS="notes,calendar,reminders,contacts,music"   # apps built so far
 WRITABLE_APPS="notes calendar reminders"
 
 # EventKit helper for Calendar and Reminders: FradSer's `event` CLI from the npm package
@@ -152,7 +152,7 @@ fi
 say "4. Self test"
 LISTED="$(printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}' '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
   | KAIROS_APPS="$APPS" KAIROS_WRITE="$(tr ' ' ',' <<<"$WRITABLE_APPS")" "$NODE" "$SERVER" 2>/dev/null)"
-for tool in notes_folders notes_read notes_create calendar_calendars calendar_read calendar_create reminders_lists reminders_read reminders_create; do
+for tool in notes_folders notes_read notes_create calendar_calendars calendar_read calendar_create reminders_lists reminders_read reminders_create contacts_search contacts_birthdays music_now music_played music_search; do
   grep -q "\"$tool\"" <<<"$LISTED" || fail "The server did not list $tool. Output: ${LISTED:0:300}"
 done
 ok "Kairos answers and lists its tools."
@@ -231,7 +231,7 @@ fi
 
 say "Done. Left for you:"
 echo "  1. Quit Claude completely (Cmd+Q) and open it again. Closing the window is not enough."
-echo "  2. The first time Kairos reads Notes or lists calendars, macOS asks whether it may control"
-echo "     Notes or Calendar, and the EventKit helper asks for Calendars and Reminders. Allow them."
+echo "  2. The first time Kairos reads Notes, Contacts or Music or lists calendars, macOS asks whether it"
+echo "     may control that app, and the EventKit helper asks for Calendars and Reminders. Allow them."
 echo "  3. The first time each Kairos shortcut runs, choose Always Allow for Notes."
 echo "  Kairos never needs Full Disk Access; leave it off."
