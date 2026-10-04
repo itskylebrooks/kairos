@@ -15,6 +15,9 @@ What is done, what comes next, and the known limits each step removes. Kept curr
 
 ## Next
 
+### Health check
+One tool, and an installer step, that answers "which permissions are missing and how do I fix them" in plain words. For each enabled app it checks access (Automation for Notes, Contacts, Mail, Music and Calendar, Calendars and Reminders for the EventKit helper), whether the Kairos shortcuts are installed once each, whether Mail is running, whether the Music play log is on and recent, and which version runs. Every problem comes with the exact place in System Settings or the one command that fixes it. It only looks: it never opens Mail or Music, and it avoids checks that would trigger a permission prompt by themselves. For people who are not developers this helps more than anything else at install time.
+
 ### Day view across all apps
 One tool for "what happened on September 12": the day's events, completed reminders, notes you edited, songs you played (from the play log) and, later, photos, merged into one timeline. Every app alone is a list; together they are a diary you did not have to write. Useful as context for a journal entry, but only when you ask for it.
 
@@ -49,6 +52,7 @@ A small Swift binary built from this repo, replacing the third party helper (`mc
 - **Music, additive writes:** create a playlist, add library songs, control playback. Never delete.
 - **Music play log backfill:** import the play history from the privacy.apple.com data export, so the log reaches back before logging started.
 - **Notes checklist ticking:** ticking a single checklist item needs a Notes action that Shortcuts on macOS 27 refuses to import; revisit with each macOS release.
+- **Permissions per AI app:** if Kairos is ever used by several AI apps at once, each could get its own set of apps and write rights. Today this already works by giving each app its own `kairos` entry with its own `KAIROS_APPS` and `KAIROS_WRITE`. The name an app reports when it connects is self declared, not proven, so it must never widen rights, only narrow them.
 - **Mail body search:** today search covers subject, sender and recipients only. Searching bodies would mean reading every message; only worth it as a capped option.
 
 ## Out of scope
