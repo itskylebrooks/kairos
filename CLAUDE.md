@@ -1,6 +1,6 @@
 # Kairos
 
-Local MCP server that gives the Claude desktop app access to Apple data on macOS: Calendar, Reminders, Contacts, Notes, Mail and Music. Runs on the Mac over stdio, is never reachable from outside, needs no Full Disk Access. It replaces the older two server setup in `~/Code/apple-mcp` (`apple-data` plus the third party `apple-events`). The selling point is care: least privilege, read by default, writes only where safe, correct handling of dates, all day items, Unicode and deleted notes.
+Local MCP server that gives the Claude desktop app access to Apple data on macOS: Calendar, Reminders, Contacts, Notes, Mail and Music. Runs on the Mac over stdio, is never reachable from outside, needs no Full Disk Access. It replaced the author's older two server setup (`apple-data` plus the third party `apple-events`). The selling point is care: least privilege, read by default, writes only where safe, correct handling of dates, all day items, Unicode and deleted notes.
 
 `START.md` is the original brief. This file holds the durable rules.
 
@@ -122,13 +122,14 @@ Out of scope: Messages (needs Full Disk Access), Safari history, Maps.
 `install.sh`: private Node binary (`runtime/node-kairos`) with checksum check, the pinned EventKit helper, the opt in Music play log agent (`--music-log on|off`), the Kairos shortcuts (built and signed by `scripts/build-shortcuts.js`, one "Add Shortcut" click each, duplicates refused), a working self test, backup of the Claude config, one `kairos` entry with `KAIROS_APPS` and `KAIROS_WRITE`. Writing is asked per app; earlier answers are kept and only apps new since the last install are asked (`--write notes,calendar` or `all`/`none` skips the questions). `--dry-run` and `--config` allow testing without touching the real config. After updating, Claude must be quit (Cmd+Q) and reopened; the installer says so.
 - Updating a shortcut: delete it in the Shortcuts app, then rerun the installer (importing over an existing name creates a duplicate).
 
-The installer is generic: it knows nothing about the author's old `apple-mcp` setup. Retiring the old `apple-data` and `apple-events` entries is a one-off manual step on the author's Mac (with a config backup), done when Kairos covers their apps: `apple-events` after Phase 2, `apple-data` after Phase 3. Do not modify or uninstall `~/Code/apple-mcp` until then.
+The installer is generic: it knows nothing about the author's old `apple-mcp` setup, which was retired on 2026-10-04 (both config entries removed, the folder moved to the Trash).
+- The Claude app can write its config back from memory while it runs, which once restored a removed entry. Edit the config by hand only while Claude is quit, and check it again after the next start.
 
 ## Build order
 
-1. Notes, starting with the Shortcuts spike.
-2. Calendar and Reminders: port reads, add writes, retire apple-events.
-3. Contacts and Music: port as they are.
+1. Notes, starting with the Shortcuts spike. Done.
+2. Calendar and Reminders: port reads, add writes, retire apple-events. Done.
+3. Contacts and Music, plus the Music play log. Done.
 4. Mail.
 5. Release prep: MIT license, permission prompt screenshots, README polish (the README exists and is kept current with each change).
 6. Later: own Swift EventKit helper, Music additive writes, importing the privacy.apple.com export into the play log.
