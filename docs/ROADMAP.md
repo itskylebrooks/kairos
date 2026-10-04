@@ -13,8 +13,14 @@ What is done, what comes next, and the known limits each step removes. Kept curr
 
 ## Next
 
-### Activity log with undo (proposed)
-A private local log of every change Kairos makes (what, when, before and after), with two tools: "what did Claude change" and "undo a change", the undo itself going through preview and confirmation. Design under discussion.
+### Activity log with undo (in progress)
+A private local log of every change Kairos makes (what, when, before and after), kept 90 days, with two tools: "what did Claude change this week" and "undo a change". The undo itself goes through preview and confirmation, and it is refused when the item was changed since, so it never overwrites your own later edits.
+
+### Day view across all apps
+One tool for "what happened on September 12": the day's events, completed reminders, notes you edited, songs you played (from the play log) and, later, photos, merged into one timeline. Every app alone is a list; together they are a diary you did not have to write. Useful as context for a journal entry, but only when you ask for it.
+
+### Free time finder
+"When do I have two free hours next week?" across all calendars, with rules you set once, for example "training evenings are blocked" or "nothing before 9 on Fridays". Mostly date math on data Kairos already reads.
 
 ### Release prep
 - MIT license.
