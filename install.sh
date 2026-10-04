@@ -37,7 +37,16 @@ say() { printf '\n\033[1m%s\033[0m\n' "$1"; }
 ok() { printf '  \033[32m✓\033[0m %s\n' "$1"; }
 warn() { printf '  \033[33m!\033[0m %s\n' "$1"; }
 fail() { printf '  \033[31m✗\033[0m %s\n' "$1"; exit 1; }
-ask() { local a=""; read -r -p "  $1 [y/N] " a </dev/tty 2>/dev/null || true; [[ "$a" =~ ^[Yy] ]]; }
+# Asks on the terminal; without one (e.g. run from another program) the answer is no.
+ask() {
+  local a=""
+  if { printf '  %s [y/N] ' "$1" >/dev/tty; } 2>/dev/null; then
+    read -r a </dev/tty || true
+  else
+    echo "  $1 No terminal to ask on, so: no."
+  fi
+  [[ "$a" =~ ^[Yy] ]]
+}
 
 # 1. macOS
 say "1. Checking macOS"
@@ -139,7 +148,8 @@ elif [ -f "$CONFIG" ] && WRITE_NOW="$("$NODE" -e '
 else
   echo "  Kairos reads Notes by default. It can also create notes, add to them and replace their"
   echo "  text (always asking you first in the chat before changing or replacing anything)."
-  if ask "Allow Kairos to write to Notes?"; then WRITE="notes"; fi
+  if ask "Allow Kairos to write to Notes? Type y and press Enter for yes, or just Enter for no."; then WRITE="notes"; fi
+  [ -n "$WRITE" ] || echo "  Read only. To allow writing later: ./install.sh --write notes"
 fi
 
 MIGRATE_OK=0
