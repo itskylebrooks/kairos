@@ -15,6 +15,7 @@ import { isBareDay, isoLocal, parseArgDate, addDays, startOfDay } from "../lib/d
 import { defineScript, jxa } from "../lib/osascript.js";
 import { fold, hasAll, words } from "../lib/text.js";
 import { clampInt } from "../lib/paging.js";
+import { cleanText } from "../lib/safety.js";
 import { ADD, READ, defineTool } from "../lib/tools.js";
 
 const APP = "Mail";
@@ -156,7 +157,9 @@ export const messageKey = (account, path, id) => `mail:${account}/${encodeURICom
 export function parseKey(key) {
   const m = /^mail:([^/]+)\/([^#]+)#(\d+)$/.exec(String(key ?? ""));
   if (!m) throw new UserError(`"${key}" is not a Kairos mail id. Ids look like mail:<account>/<mailbox>#123; get them from mail_search.`);
-  return { account: m[1], path: decodeURIComponent(m[2]), id: Number(m[3]) };
+  let path;
+  try { path = decodeURIComponent(m[2]); } catch { throw new UserError(`"${key}" is not a Kairos mail id; get ids from mail_search.`); }
+  return { account: m[1], path, id: Number(m[3]) };
 }
 
 // Trash and junk mailboxes are left out of searches unless asked for (names per language).
@@ -201,9 +204,21 @@ function targets(accs, { account, mailbox, include_trash }) {
 
 /* ================= third party text (marked centrally in lib/safety.js) ================= */
 
-// Zero width and bidi control characters can hide text from the person reading along.
-const INVISIBLE = /[​-‏‪-‮⁠-⁤﻿]/g;
-export const clean = (s) => String(s ?? "").replace(INVISIBLE, "").replace(/\r\n?/g, "\n");
+// Invisible characters can hide text from the person reading along: the same cleaning the
+// server applies to everything from others (lib/safety.js), here also before quotes are cut.
+export const clean = cleanText;
+
+// Mailboxes that hold what the user wrote: sent mail, drafts and the outbox (names per language).
+const OWN_BOX = /^(sent|sent messages|sent items|sent mail|drafts?|outbox|gesendet|gesendete (objekte|elemente)|entwürfe|postausgang|отправленные|черновики|исходящие)$/i;
+
+/**
+ * Whether a message holds other people's text. The From header alone proves nothing: anyone
+ * can send mail that claims to come from the user's own address. So a message counts as the
+ * user's own only when the sender is one of their addresses AND it lies in a sent, drafts
+ * or outbox mailbox, where received mail does not arrive.
+ * @param {Set<string>} mine  the user's addresses, lowercased
+ */
+export const isFromOthers = (mine, from, path) => !(mine.has(addressOf(from)) && OWN_BOX.test(leaf(path)));
 
 /**
  * Splits a plain text body into the new part and the quoted history / signature.
@@ -290,7 +305,7 @@ async function mailSearch({ query, from, to, subject, mailbox, account, since, u
     mailbox: m.path,
     unread: !m.read,
     flagged: !!m.flagged,
-    from_others: !mine.has(addressOf(m.from)),
+    from_others: isFromOthers(mine, m.from, m.path),
   }));
   return {
     range: { from: isoLocal(start), to: end ? isoLocal(end) : "now" },
@@ -315,7 +330,7 @@ async function mailRead({ id, max_chars, offset, include_quoted = false } = /** 
   const max = clampInt(max_chars, 200, 50000, 8000);
   const off = clampInt(offset, 0, 1e9, 0);
   const part = text.slice(off, off + max);
-  const fromOthers = !mine.has(addressOf(m.from));
+  const fromOthers = isFromOthers(mine, m.from, k.path);
   const accs = await accounts();
   return {
     id,
@@ -336,12 +351,17 @@ async function mailRead({ id, max_chars, offset, include_quoted = false } = /** 
   };
 }
 
+// One recipient per entry, as a whole: "ada@example.com" or "Ada Example <ada@example.com>".
+// Checking only the part in angle brackets would let "x@example.net, <ada@example.com>"
+// carry a second, unchecked recipient into the draft.
+const ADDR = "[^\\s@<>,;:\"()\\[\\]\\\\]+@[^\\s@<>,;:\"()\\[\\]\\\\]+\\.[^\\s@<>,;:\"()\\[\\]\\\\]+";
+const RECIPIENT = new RegExp(`^(?:${ADDR}|[^<>@,;:"\\r\\n\\\\]*<${ADDR}>)$`);
 const emailList = (v, field) => {
   const list = v == null ? [] : Array.isArray(v) ? v : [v];
   for (const a of list) {
-    if (typeof a !== "string" || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(addressOf(a))) throw new UserError(`${field}: "${a}" is not an email address.`);
+    if (typeof a !== "string" || !RECIPIENT.test(a.trim())) throw new UserError(`${field}: "${a}" is not an email address. Pass one address per entry, like ada@example.com or Ada Example <ada@example.com>.`);
   }
-  return list.map(String);
+  return list.map((a) => a.trim());
 };
 
 /** The quote Kairos adds under a reply, since Mail adds none to scripted replies. */
@@ -369,8 +389,13 @@ async function mailCreateDraft({ to, cc, subject, body = "", reply_to_id, reply_
   const toList = emailList(to, "to"), ccList = emailList(cc, "cc");
   const subj = clean(subject ?? "").trim();
   if (!subj && !text) throw new UserError("A new draft needs a subject or a body.");
-  if (from !== undefined) emailList(from, "from");
-  await mail(JXA_DRAFT_NEW, { to: toList, cc: ccList, subject: subj, body: text, from: from ?? null }, 60000);
+  let sender = null;
+  if (from !== undefined && from !== null && from !== "") {
+    if (typeof from !== "string") throw new UserError("from must be one address.");
+    [sender] = emailList(from, "from");
+    if (!(await myAddresses()).has(addressOf(sender))) throw new UserError(`from: "${from}" is not an address of one of the user's Mail accounts. Use mail_mailboxes to see them.`);
+  }
+  await mail(JXA_DRAFT_NEW, { to: toList, cc: ccList, subject: subj, body: text, from: sender }, 60000);
   return {
     saved_to: "Drafts", subject: subj, to: toList, cc: ccList, sent: false, note: "Saved as a draft in Mail. Nothing was sent: the user reviews and sends it.",
     _journal: { action: "draft", target: { kind: "draft", id: null, title: subj }, summary: `Saved a draft "${subj}" to ${toList.join(", ") || "no recipient yet"} in Mail (not sent).`, before: null, after: { subject: subj, to: toList, cc: ccList }, undo: { possible: false, reason: "Delete the draft in Mail if you do not want it." } },
@@ -381,7 +406,7 @@ async function mailCreateDraft({ to, cc, subject, body = "", reply_to_id, reply_
 
 const DATE = { type: "string", description: "Date (2030-01-31) or local date-time (2030-01-31 18:00)." };
 const MSG_ID = { type: "string", description: "Message id from mail_search (mail:<account>/<mailbox>#123)." };
-const ADDRS = { type: ["array", "string"], description: "Email addresses (\"ada@example.com\" or \"Ada Example <ada@example.com>\")." };
+const ADDRS = { type: ["array", "string"], description: "Email addresses, one per entry (\"ada@example.com\" or \"Ada Example <ada@example.com>\")." };
 
 export const tools = [
   defineTool({
