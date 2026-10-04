@@ -7,7 +7,7 @@ Local MCP server that gives the Claude desktop app access to Apple data on macOS
 ## Target platform
 
 - Development and real data testing happen on macOS 27 (Apple silicon). Treat that as the primary target.
-- Notes behaviour, App Intents, Shortcuts and TCC prompts change between macOS releases. Anything learned on macOS 26 Tahoe (including the Notes findings below) must be rechecked on 27 before we rely on it.
+- Notes behaviour, App Intents, Shortcuts and TCC prompts change between macOS releases. Anything learned on macOS 26 Tahoe must be rechecked on 27 before we rely on it.
 - When a behaviour depends on the macOS version, say so in the docs and in tool descriptions, and record which version it was verified on.
 
 ## Public repo: no personal data, ever
@@ -86,8 +86,12 @@ Out of scope: Messages (needs Full Disk Access), Safari history, Maps.
 - Listing without a folder mixes in Recently Deleted. Exclude deleted notes by default and always report each note's folder.
 - Names are ambiguous: use note ids (`x-coredata://...`).
 - Rewriting a body destroys checklists and attachments.
-- Notes imports Markdown natively since macOS 26 Tahoe; confirm on 27.
-- Preferred route for formatting: generated Shortcuts calling Notes' App Intents with Markdown (as in eliotshea/notes-mcp). Fallback: JXA with honest docs about the limits.
+- Route (verified on macOS 27, see `docs/notes-spike.md`): writes through generated Shortcuts calling Notes' App Intents with `interpretAsMarkdown`, reads through JXA.
+  - Create: Create Note (title, folder as text) then Append Markdown to that new note in the same run.
+  - Append to an existing note: JXA resolves the id and checks the name is unique, then a shortcut appends only inside `If matches is 1`.
+  - A Shortcuts parameter that ends up empty opens a window asking a person to pick a note or type text, and the write lands wherever they choose. Every write shortcut must guard against 0 and 2+ matches inside the shortcut.
+  - Notes write permission belongs to each Kairos shortcut, not to the private Node binary. Document this for users.
+- Checklist state is invisible to JXA; the Shortcuts `Body` rendering shows it (`◦` open, `✓` done).
 
 **Mail.** JXA against Mail. Slow on large mailboxes: every query has a default date range and limit. No send tool.
 
