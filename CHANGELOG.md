@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.2 (2026-10-04)
 
 **Large results come in parts**
 - One result now holds at most 20,000 characters (before: 100,000), so a single answer no longer fills Claude's context. Change it with `KAIROS_MAX_RESULT_CHARS` (5,000 to 100,000) in the Claude config; the installer keeps that setting.
