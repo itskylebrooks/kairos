@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.1 (2026-10-04)
 
 Fixes from a security and bug review.
 
