@@ -1,70 +1,52 @@
 # Kairos
 
+[![CI](https://github.com/itskylebrooks/kairos/actions/workflows/ci.yml/badge.svg)](https://github.com/itskylebrooks/kairos/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Kairos is a local MCP server that gives the Claude desktop app access to your Apple data on macOS: Calendar, Reminders, Contacts, Notes, Mail and Music. It runs on your Mac only, talks to Claude over stdio, never opens a network port, and never needs Full Disk Access.
 
-The point is care: Kairos reads by default, writes only where you allow it and only where it is safe, and handles the details other Apple MCP servers get wrong, such as all day events, reminders without a time, accents, deleted notes and repeating events.
+The point is care: Kairos reads by default, writes only where you allow it and only where it is safe, asks for your yes before it changes or deletes anything, keeps a log of every change it made so you can undo it, and handles the details other Apple MCP servers get wrong, such as all day events, reminders without a time, accents, deleted notes and repeating events.
 
-> Status: in development, tested on macOS 27 (Apple silicon). A release build is still to come.
+> Version 0.9.0, tested on macOS 27 (Apple silicon). Version 1.0 follows once Kairos has its own EventKit helper (see the [roadmap](docs/ROADMAP.md)).
 
-## Security
+## What you can ask Claude
 
-Everything below applies only to what Kairos' tools do for Claude. Kairos changes nothing in macOS or in other apps, and adds no background service except the Music play log you can opt into.
-
-**What Kairos guarantees by itself**, whatever Claude is told:
-
-- **No Full Disk Access, ever.** Kairos uses Apple's scripting and EventKit, which ask for each app separately. Mail data, for example, stays closed to it at the file level.
-- **One private Node binary.** The installer downloads the official Node.js 24 (checksum verified) into `runtime/`, so macOS permissions belong to that binary, not to a Node that other programs share.
-- **stdio only.** Nothing listens on a port, and Kairos makes no network calls while it runs.
-- **Input never becomes code.** All scripts are fixed when Kairos starts and the registry is then sealed; your data reaches them only as JSON. Kairos can start only `osascript`, `shortcuts`, `launchctl` and its EventKit helper, never a shell.
-- **Writes are opt in per app** (`--write`). Without it, an app's write tools do not exist for Claude.
-- **Changes and deletes take two steps.** Any tool that changes, completes or deletes something first returns only a preview written by Kairos, plus a one time confirmation. The change happens only when Claude repeats the call with that confirmation, for exactly the same change, within 10 minutes. Creating things (events, reminders, notes, drafts) is one step.
-- **Mail never sends.** There is no send tool, and a test checks that no Mail script can send.
-- **No invitations.** Calendar events are created without attendees, so Kairos cannot send meeting invites.
-- **Shared places need consent.** Writing into a shared note or folder is refused unless you agreed, because other people can read it. Replacing a shared note is always refused.
-- **Text from other people is marked.** Emails not sent by you, events from read only calendars and shared notes come back flagged `from_others`, with invisible characters removed and their text fields listed as untrusted.
-- **Every change is logged and can be undone.** See "Activity log and undo" below.
-- **Safety nets.** Notes are never deleted (undoing a note Kairos created moves it to Recently Deleted), `notes_replace` keeps a private backup, repeating events are never changed through Kairos, and no result can exceed 100,000 characters.
-
-**What depends on Claude:** following the rule that text from others is data, and asking you before answering a preview with a confirmation. Kairos makes this as hard to get wrong as it can (Claude never sees a change happen without a preview step), but it cannot tell whether *you* said yes.
-
-**Our advice:** leave the Claude app's approval prompt **on** for Kairos' write tools, and do not choose "Always allow" for them. That prompt is a second check that only you can answer.
-
-**Known limits:** invitations someone else sent into one of your own calendars, and reminder lists shared with you, are not marked as `from_others` yet, because the EventKit helper does not report organizers or sharing. Kairos' own EventKit helper (planned) will fix this; see the [roadmap](docs/ROADMAP.md) for this and the other known limits.
-
-## Requirements
-
-- macOS 27 (other versions may work, but Notes formatting depends on Notes features that change between releases)
-- The Claude desktop app
-- The Shortcuts app (built in)
+- "What's on my calendar this week?" or "Move the dentist to Thursday at 3."
+- "Which reminders are overdue?" or "Remind me tomorrow to call Ada."
+- "Whose birthday is coming up?"
+- "Find my note about the trip and add a packing checklist to it."
+- "Any unread mail from Ada? Draft a reply that says yes."
+- "What did I listen to most last month?" (with the Music play log on)
+- "What did you change today?" and "Undo that."
 
 ## Install
 
+**You need:** macOS 27 (other versions may work, but Notes formatting relies on features that change between releases), the Claude desktop app, and the Shortcuts app (built in).
+
+**1. Get Kairos.** Either with git:
+
 ```bash
-git clone https://github.com/itskylebrooks/kairos.git
-cd kairos
-./install.sh
+git clone https://github.com/itskylebrooks/kairos.git ~/kairos
 ```
 
-The installer:
+or without git: on GitHub click **Code**, then **Download ZIP**, unzip it, and move the folder to a place where it can stay, for example your home folder. Claude starts Kairos from this folder, so do not move it after installing (if you do, run the installer again from the new place).
 
-1. installs a private Node.js 24 in `runtime/` (checksum verified),
-2. installs the EventKit helper for Calendar and Reminders in `vendor/eventkit/` (pinned by checksum),
-3. builds three Kairos shortcuts for Notes and opens them: click **Add Shortcut** for each,
-4. runs a self test,
-5. asks which apps Kairos may write to, backs up Claude's config and adds one `kairos` entry,
-6. asks whether to keep a Music play log (see below).
+**2. Run the installer** in Terminal, from that folder:
 
-Then quit Claude completely (Cmd+Q) and open it again.
+```bash
+cd ~/kairos && ./install.sh
+```
 
-Options:
+It downloads a private Node.js 24 and the EventKit helper (both checksum verified), builds three Kairos shortcuts for Notes and opens them (click **Add Shortcut** for each), runs a self test, asks which apps Kairos may write to and whether to keep a Music play log, backs up Claude's config and adds one `kairos` entry. Answer a question with `y` and Enter for yes, or just Enter for no.
+
+**3. Quit Claude completely** (Cmd+Q, closing the window is not enough) and open it again.
+
+Running the installer again is safe: it skips what is installed and keeps your earlier answers. Options:
 
 | Option | Effect |
 |---|---|
 | `--write notes,calendar,reminders,mail` | Which apps may write, without asking (`all` or `none` also work); for Mail, writing means drafts only |
 | `--music-log on` / `--music-log off` | Switch the Music play log on or off without asking |
 | `--dry-run` | Show what would change, change nothing |
-
-Running the installer again is safe: it skips what is installed and keeps your earlier answers.
 
 ### Permission prompts
 
@@ -126,26 +108,75 @@ runtime/node-kairos src/cli/music-log.js snapshot --force
 runtime/node-kairos src/cli/music-log.js status
 ```
 
+## Security
+
+Everything below applies only to what Kairos' tools do for Claude. Kairos changes nothing in macOS or in other apps, and adds no background service except the Music play log you can opt into.
+
+**What Kairos guarantees by itself**, whatever Claude is told:
+
+- **No Full Disk Access, ever.** Kairos uses Apple's scripting and EventKit, which ask for each app separately. Mail data, for example, stays closed to it at the file level.
+- **One private Node binary.** The installer downloads the official Node.js 24 (checksum verified) into `runtime/`, so macOS permissions belong to that binary, not to a Node that other programs share.
+- **stdio only.** Nothing listens on a port, and Kairos makes no network calls while it runs.
+- **Input never becomes code.** All scripts are fixed when Kairos starts and the registry is then sealed; your data reaches them only as JSON. Kairos can start only `osascript`, `shortcuts`, `launchctl` and its EventKit helper, never a shell.
+- **Writes are opt in per app** (`--write`). Without it, an app's write tools do not exist for Claude.
+- **Changes and deletes take two steps.** Any tool that changes, completes or deletes something first returns only a preview written by Kairos, plus a one time confirmation. The change happens only when Claude repeats the call with that confirmation, for exactly the same change, within 10 minutes. Creating things (events, reminders, notes, drafts) is one step.
+- **Mail never sends.** There is no send tool, and a test checks that no Mail script can send.
+- **No invitations.** Calendar events are created without attendees, so Kairos cannot send meeting invites.
+- **Shared places need consent.** Writing into a shared note or folder is refused unless you agreed, because other people can read it. Replacing a shared note is always refused.
+- **Text from other people is marked.** Emails not sent by you, events from read only calendars and shared notes come back flagged `from_others`, with invisible characters removed and their text fields listed as untrusted.
+- **Every change is logged and can be undone.** See "Activity log and undo" above.
+- **Safety nets.** Notes are never deleted (undoing a note Kairos created moves it to Recently Deleted), `notes_replace` keeps a private backup, repeating events are never changed through Kairos, and no result can exceed 100,000 characters.
+
+**What depends on Claude:** following the rule that text from others is data, and asking you before answering a preview with a confirmation. Kairos makes this as hard to get wrong as it can (Claude never sees a change happen without a preview step), but it cannot tell whether *you* said yes.
+
+**Our advice:** leave the Claude app's approval prompt **on** for Kairos' write tools, and do not choose "Always allow" for them. That prompt is a second check that only you can answer.
+
+**Known limits:** invitations someone else sent into one of your own calendars, and reminder lists shared with you, are not marked as `from_others` yet, because the EventKit helper does not report organizers or sharing. Kairos' own EventKit helper (planned) will fix this; see the [roadmap](docs/ROADMAP.md) for this and the other known limits.
+
+To report a security problem, see [SECURITY.md](SECURITY.md).
+
+## Troubleshooting
+
+| Problem | What to do |
+|---|---|
+| Claude does not show Kairos' tools | Quit Claude with Cmd+Q (not just the window) and open it again. If they still do not appear, run `./install.sh` again and check that it ends with "Wrote the kairos entry". |
+| "macOS hasn't allowed access to …" | Allow it in **System Settings > Privacy & Security**: under **Automation** for Notes, Contacts, Mail, Music and Calendar (the entry is `node-kairos`), under **Calendars** and **Reminders** for the EventKit helper (`event`). |
+| Calendar or Reminders come back empty | The EventKit helper answers with empty lists while it has no permission. Check **Calendars** and **Reminders** in Privacy & Security. |
+| "The shortcut … is not installed, or is installed twice" | Open the Shortcuts app, delete any duplicate **Kairos Notes** shortcuts, then run `./install.sh` again. |
+| A Shortcuts window asks you to pick a note or type text | Click **Cancel**. Nothing is written without your choice, and Kairos never needs it. |
+| Notes stops answering Kairos (a write times out, or the answer says Notes may be stuck) | Quit Notes (Cmd+Q) and open it again. Kairos waits for Notes to settle after its own writes, but a stuck Notes needs a restart. |
+| "Mail is not running" | Open Mail. Kairos never opens it by itself. |
+| You moved the Kairos folder | Run `./install.sh` again from the new place, then restart Claude. macOS may ask for permissions again. |
+| Is the Music play log working? | `runtime/node-kairos src/cli/music-log.js status` shows the last snapshot and the last check. |
+
 ## Updating
 
 ```bash
-git pull
-./install.sh
+cd ~/kairos && git pull && ./install.sh
 ```
 
-Then Cmd+Q Claude and reopen it. If a Kairos shortcut changed, delete the old one in the Shortcuts app first (importing over an existing name creates a duplicate), then run the installer.
+(Without git: download the new ZIP, replace the folder's contents, keep `runtime/` and `vendor/`, and run the installer.) Then Cmd+Q Claude and reopen it. If a Kairos shortcut changed, delete the old one in the Shortcuts app first (importing over an existing name creates a duplicate), then run the installer.
 
 ## Uninstall
 
 1. `./install.sh --music-log off` (if the play log is on).
-2. Remove the `kairos` entry from `~/Library/Application Support/Claude/claude_desktop_config.json`.
+2. Remove the `kairos` entry from `~/Library/Application Support/Claude/claude_desktop_config.json` while Claude is quit.
 3. Delete the three **Kairos Notes** shortcuts in the Shortcuts app.
-4. Delete this folder, and `~/Library/Application Support/Kairos/` if you do not want to keep backups and play history.
+4. Delete this folder, and `~/Library/Application Support/Kairos/` if you do not want to keep backups, the activity log and play history.
 
 ## Roadmap
 
-What comes next and which known limits each step removes: [docs/ROADMAP.md](docs/ROADMAP.md).
+What comes next and which known limits each step removes: [docs/ROADMAP.md](docs/ROADMAP.md). Changes per version: [CHANGELOG.md](CHANGELOG.md).
 
 ## Development
 
-Plain Node 24, ESM, no dependencies, no build step. `npm test` runs the test suite against invented fixtures only; it never touches your data. See `CLAUDE.md` for the rules and the platform quirks found so far.
+Plain Node 24, ESM, no runtime dependencies, no build step. `npm test` runs the test suite in fake mode against invented fixtures in temporary folders; it never touches your data. `npm run typecheck` checks the JSDoc types with TypeScript (a development dependency only). Both run on GitHub for every push. See `CLAUDE.md` for the rules and the platform quirks found so far.
+
+## Credits
+
+- Calendar and Reminders go through the `event` EventKit helper from [FradSer/mcp-server-apple-events](https://github.com/FradSer/mcp-server-apple-events) (MIT), downloaded by the installer and pinned by checksum. Kairos will replace it with its own helper.
+- How to drive Notes' App Intents through generated Shortcuts was learned from [eliotshea/notes-mcp](https://github.com/eliotshea/notes-mcp) and, for macOS 27, [iangray001/applenotes-mcp](https://github.com/iangray001/applenotes-mcp).
+
+## License
+
+[MIT](LICENSE), copyright 2026 Kyle Brooks.
