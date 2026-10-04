@@ -13,7 +13,7 @@ import { PREVIEW_NOTE, issueToken, processResult, redeemToken } from "./lib/safe
 import { describeTool, selectTools, validateArgs } from "./lib/tools.js";
 
 export const NAME = "kairos";
-export const VERSION = "0.1.0";
+export const VERSION = "0.9.0";
 
 /** Protocol versions this server implements, newest first. */
 export const PROTOCOL_VERSIONS = Object.freeze(["2025-11-25", "2025-06-18", "2025-03-26"]);
