@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.0 (2026-10-05)
 
 **Version 1.0**
 - The core is complete and stable for daily use: Calendar, Reminders, Contacts, Notes, Mail and Music on your Mac, safe writes with previews (or without, if you choose), a log of every change with undo, never a permanent delete, a removal limit enforced by Kairos, the health check, `kairos_help`, and the dictation inbox recipe.
