@@ -342,7 +342,7 @@ export const tools = [
   }),
   defineTool({
     name: "reminders_update", app: "reminders", title: "Change a reminder", annotations: UPDATE, handler: remindersUpdate, preview: previewUpdate,
-    description: "Change fields of one reminder by id; only the fields passed change. due: null removes the date. Two steps: the first call only returns a preview and a confirmation; show the preview, wait for the user's yes, then call again with the same arguments plus confirmation.",
+    description: "Change fields of one reminder by id; only the fields passed change. due: null removes the date.",
     inputSchema: {
       type: "object", additionalProperties: false, required: ["id"],
       properties: { id: REM_ID, title: { type: "string" }, due: { type: ["string", "null"], description: "Date, date-time, or null to remove." }, notes: { type: "string", description: "New notes (cannot be cleared yet)." }, url: { type: "string", description: "New URL (cannot be cleared yet)." }, priority: PRIORITY },
@@ -350,12 +350,12 @@ export const tools = [
   }),
   defineTool({
     name: "reminders_complete", app: "reminders", title: "Complete a reminder", annotations: { ...UPDATE, destructiveHint: false }, handler: remindersComplete, preview: previewComplete,
-    description: "Mark one reminder as done by id (completed: false reopens it). Two steps: the first call only returns a preview and a confirmation; show the preview, wait for the user's yes, then call again with the same arguments plus confirmation.",
+    description: "Mark one reminder as done by id (completed: false reopens it).",
     inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: REM_ID, completed: { type: "boolean", description: "Default true." } } },
   }),
   defineTool({
     name: "reminders_delete", app: "reminders", title: "Delete a reminder", annotations: DELETE, handler: remindersDelete, preview: previewDelete,
-    description: "Delete one reminder by id. Two steps: the first call only returns a preview and a confirmation; show the preview, wait for the user's yes, then call again with the same arguments plus confirmation.",
+    description: "Delete one reminder by id.",
     inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: REM_ID } },
   }),
 ];

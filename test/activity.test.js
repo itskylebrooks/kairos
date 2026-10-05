@@ -110,3 +110,21 @@ test("an older change waits until later changes to the same item are undone", as
   const again = Object.fromEntries((await call("kairos_activity", {})).changes.map((c) => [c.id, c]));
   assert.equal(again[created.id].can_undo, true);
 });
+
+test("with previews off, undo runs in one step too", async () => {
+  const fx = {
+    osascript: { "calendar.calendars": [{ output: CALS }] },
+    eventkit: [
+      { prefix: ["calendar", "create"], output: EVENT },
+      { prefix: ["calendar", "delete"], output: "Event deleted successfully" },
+      { prefix: ["calendar", "list"], output: [EVENT] },
+    ],
+  };
+  setFakeFixtures(fx);
+  const s = createServer({ config: readConfig({ KAIROS_APPS: "calendar", KAIROS_WRITE: "calendar", KAIROS_CONFIRM: "off" }) });
+  const call = async (name, args) => (await s.handle({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } })).result.structuredContent;
+  const created = await call("calendar_create", { title: "Dentist", start: "2030-01-15 10:00", calendar: "Kairos Test" });
+  const undone = await call("kairos_undo", { id: created.activity_id });
+  assert.equal(undone.undone, created.activity_id);
+  assert.ok(fx.calls.eventkit.some((a) => a[1] === "delete"), "deleted at once, no preview");
+});

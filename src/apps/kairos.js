@@ -105,7 +105,7 @@ export const tools = [
   }),
   defineTool({
     name: "kairos_undo", app: CORE_APP, title: "Undo a change", annotations: DELETE, handler: kairosUndo, preview: previewUndo,
-    description: "Undo one change from kairos_activity by its id. Refused when the item was changed after Kairos' change (undo never overwrites later edits), and for changes that cannot be undone (see why_not). Two steps: the first call only returns a preview and a confirmation; show the preview, wait for the user's yes, then call again with the same id plus confirmation.",
+    description: "Undo one change from kairos_activity by its id. Refused when the item was changed after Kairos' change (undo never overwrites later edits), and for changes that cannot be undone (see why_not).",
     inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: { type: "string", description: "Change id from kairos_activity (act-...)." } } },
   }),
   defineTool({

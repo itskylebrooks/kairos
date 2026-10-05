@@ -46,6 +46,7 @@ Running the installer again is safe: it skips what is installed and keeps your e
 |---|---|
 | `--write notes,calendar,reminders,mail` | Which apps may write, without asking (`all` or `none` also work); for Mail, writing means drafts only |
 | `--music-log on` / `--music-log off` | Switch the Music play log on or off without asking |
+| `--confirm on` / `--confirm off` | Whether Claude shows a preview and waits for your yes before changing or deleting (on, the default), or acts at once (off); see Security |
 | `--dry-run` | Show what would change, change nothing |
 
 **Result size (optional):** one result holds at most 20,000 characters; larger ones come in parts. To change that, quit Claude, add `"KAIROS_MAX_RESULT_CHARS": "40000"` (any number from 5,000 to 100,000) to the `env` of the `kairos` entry in `~/Library/Application Support/Claude/claude_desktop_config.json`, and open Claude again. The installer keeps this setting.
@@ -192,7 +193,7 @@ Everything below applies only to what Kairos' tools do for Claude. Kairos change
 - **stdio only.** Nothing listens on a port, and Kairos makes no network calls while it runs.
 - **Input never becomes code.** All scripts are fixed when Kairos starts and the registry is then sealed; your data reaches them only as JSON. Kairos can start only `osascript`, `shortcuts`, `launchctl` and its EventKit helper, never a shell.
 - **Writes are opt in per app** (`--write`). Without it, an app's write tools do not exist for Claude.
-- **Changes and deletes take two steps.** Any tool that changes, completes or deletes something first returns only a preview written by Kairos, plus a one time confirmation. The change happens only when Claude repeats the call with that confirmation, for exactly the same change, within 10 minutes. Creating things (events, reminders, notes, drafts) is one step.
+- **Changes and deletes take two steps, unless you switch that off.** By default, any tool that changes, completes or deletes something first returns only a preview written by Kairos, plus a one time confirmation. The change happens only when Claude repeats the call with that confirmation, for exactly the same change, within 10 minutes. Creating things (events, reminders, notes, drafts) and moving or deleting a note to Recently Deleted are one step. With `--confirm off` (setting `KAIROS_CONFIRM=off`) every change acts at once; it is still logged and can be undone.
 - **Mail never sends.** There is no send tool, and a test checks that no Mail script can send.
 - **No invitations.** Calendar events are created without attendees, so Kairos cannot send meeting invites.
 - **Shared places need consent.** Writing into a shared note or folder is refused unless you agreed, because other people can read it. Replacing a shared note, or a note in a shared folder, is always refused.
@@ -204,7 +205,7 @@ Everything below applies only to what Kairos' tools do for Claude. Kairos change
 
 **Claude's approval prompts: your choice.** The Claude app can ask before every tool call, or you choose "Always allow" per tool. Kairos is built so that running it fully autonomously is a reasonable choice:
 
-- **Fully autonomous** ("Always allow" for every Kairos tool): Claude reads, creates and changes without asking you each time. The safety nets above stay in place: Kairos still previews every change or delete in the chat first, Mail can never send or delete, and every change is logged and can be undone with "undo that". The remaining risk is text written by someone else (an email, an invitation) talking Claude into a change you did not want; you would see it in the activity log and undo it.
+- **Fully autonomous** ("Always allow" for every Kairos tool, and `./install.sh --confirm off` so Kairos skips its previews too): Claude reads, creates, changes and deletes without asking you. The other safety nets stay in place: Mail can never send or delete permanently, notes are never deleted permanently, and every change is logged and can be undone with "undo that". The remaining risk is text written by someone else (an email, an invitation) talking Claude into a change you did not want; you would see it in the activity log and undo it.
 - **Middle ground:** "Always allow" for the reading and creating tools, and keep the prompt only for tools that change, complete or delete existing things (`*_update`, `*_delete`, `reminders_complete`, `notes_replace`, `notes_trash`, `kairos_undo`). Those are rare, so the prompt seldom appears.
 
 macOS and the Shortcuts app ask their own questions once (see "Permission prompts"); those are separate from Claude's approvals.

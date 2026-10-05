@@ -103,7 +103,7 @@ export async function checkHealth({ config, apps, root = ROOT, execPath = proces
   const enabled = [...config.apps].join(", ") || "none";
   const writes = [...config.write].join(", ") || "none";
   add("kairos", "settings", config.warnings.length ? "warning" : "ok",
-    `Apps: ${enabled}. May write: ${writes}. Result size: ${(config.maxResultChars ?? 20000).toLocaleString("en")} characters.${config.warnings.length ? " " + config.warnings.join(" ") : ""}`,
+    `Apps: ${enabled}. May write: ${writes}. Previews before changes: ${config.confirm === false ? "off" : "on"}. Result size: ${(config.maxResultChars ?? 20000).toLocaleString("en")} characters.${config.warnings.length ? " " + config.warnings.join(" ") : ""}`,
     config.warnings.length ? "Fix the setting named above in the kairos entry of Claude's config, or run ./install.sh." : undefined);
 
   // Kairos' private folders must be readable by the user only.

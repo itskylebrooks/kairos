@@ -413,7 +413,7 @@ export const tools = [
   }),
   defineTool({
     name: "calendar_update", app: "calendar", title: "Change an event", annotations: UPDATE, handler: calendarUpdate, preview: previewUpdate,
-    description: "Change fields of one event by id; only the fields passed change (moving start keeps the length). Two steps: the first call only returns a preview and a confirmation; show the preview, wait for the user's yes, then call again with the same arguments plus confirmation. Repeating events are refused: change those in the Calendar app.",
+    description: "Change fields of one event by id; only the fields passed change (moving start keeps the length). Repeating events are refused: change those in the Calendar app.",
     inputSchema: {
       type: "object", additionalProperties: false, required: ["id"],
       properties: { id: EVENT_ID, title: { type: "string" }, start: DATE, end: DATE, location: { type: "string", description: "New location (cannot be cleared yet)." }, notes: { type: "string", description: "New notes (cannot be cleared yet)." } },
@@ -421,7 +421,7 @@ export const tools = [
   }),
   defineTool({
     name: "calendar_delete", app: "calendar", title: "Delete an event", annotations: DELETE, handler: calendarDelete, preview: previewDelete,
-    description: "Delete one event by id. Two steps: the first call only returns a preview and a confirmation; show the preview, wait for the user's yes, then call again with the same arguments plus confirmation. Repeating events are refused: delete those in the Calendar app.",
+    description: "Delete one event by id. Repeating events are refused: delete those in the Calendar app.",
     inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: EVENT_ID } },
   }),
 ];

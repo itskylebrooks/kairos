@@ -6,6 +6,7 @@
 #   ./install.sh --dry-run     show the config change without writing anything
 #   ./install.sh --write LIST  set which apps may write, e.g. notes,calendar (or all, or none)
 #   ./install.sh --music-log on|off  switch the Music play log on or off without asking
+#   ./install.sh --confirm on|off  previews before changes and deletes (on) or none (off), without asking
 #   ./install.sh --config F    use another Claude config file (for testing)
 #
 # Safe to run again: it skips what is already there and backs up the config before editing it.
@@ -31,14 +32,15 @@ EVENT_SHA256="dee0b28da225f313a85f14179b761b8f46f051339f97d91fe5adfc3df1bbf9e7"
 DISCLAIM_SHA256="4338a80457fba1359a56f0c010ecaf3b2c59856a74bd2b70acaaf6060a1814dc"
 EVENT_DIR="$DIR/vendor/eventkit"
 
-DRY=0 WRITE_ARG="" MUSIC_LOG_ARG=""
+DRY=0 WRITE_ARG="" MUSIC_LOG_ARG="" CONFIRM_ARG=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --dry-run) DRY=1 ;;
     --config) CONFIG="$2"; shift ;;
     --write) WRITE_ARG="$2"; shift ;;
     --music-log) MUSIC_LOG_ARG="$2"; shift ;;
-    -h|--help) sed -n '2,11p' "$0"; exit 0 ;;
+    --confirm) CONFIRM_ARG="$2"; shift ;;
+    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
     *) echo "Unknown option: $1 (see --help)"; exit 1 ;;
   esac
   shift
@@ -199,8 +201,7 @@ else
   ' "$CONFIG" 2>/dev/null || true)"
   PRIOR_APPS="${PRIOR%%|*}" PRIOR_WRITE="${PRIOR#*|}"
   [ "$PRIOR" = "$PRIOR_APPS" ] && PRIOR_WRITE=""
-  echo "  Kairos always reads. Writing is switched on per app; Claude still asks you in the chat"
-  echo "  before it changes, completes or deletes anything."
+  echo "  Kairos always reads. Writing is switched on per app."
   for app in $WRITABLE_APPS; do
     if in_list "$app" "$PRIOR_APPS"; then
       if in_list "$app" "$PRIOR_WRITE"; then add_write "$app"; ok "$app: writing stays on"; else ok "$app: stays read only"; fi
@@ -211,20 +212,40 @@ else
   echo "  To change this later: ./install.sh --write notes,calendar,reminders,mail (or all, or none)"
 fi
 
+# Previews before changes and deletes (KAIROS_CONFIRM). Earlier answers are kept.
+PRIOR_CONFIRM="$([ -f "$CONFIG" ] && "$NODE" -e '
+  const c = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8") || "{}");
+  process.stdout.write(((c.mcpServers && c.mcpServers.kairos && c.mcpServers.kairos.env) || {}).KAIROS_CONFIRM || "");
+' "$CONFIG" 2>/dev/null || true)"
+CONFIRM="on"
+case "$CONFIRM_ARG" in
+  on|off) CONFIRM="$CONFIRM_ARG"; ok "Previews from --confirm: $CONFIRM" ;;
+  "")
+    if [ -z "$WRITE" ]; then CONFIRM="${PRIOR_CONFIRM:-on}"
+    elif [ -n "$PRIOR_CONFIRM" ]; then CONFIRM="$PRIOR_CONFIRM"; ok "Previews before changes stay $CONFIRM"
+    else
+      echo "  By default, Claude shows a preview and waits for your yes before Kairos changes, completes"
+      echo "  or deletes anything. Without previews, changes happen at once; every change is still logged"
+      echo "  and can be undone (\"undo that\")."
+      if ask "Let Claude change and delete without a preview? Type y and Enter for yes, just Enter for no."; then CONFIRM="off"; fi
+    fi ;;
+  *) fail "--confirm takes on or off." ;;
+esac
+
 edit_config() {
   "$NODE" -e '
     const fs = require("fs");
-    const [file, node, server, apps, write, dry] = process.argv.slice(1);
+    const [file, node, server, apps, write, confirm, dry] = process.argv.slice(1);
     let cfg = {};
     if (fs.existsSync(file)) cfg = JSON.parse(fs.readFileSync(file, "utf8") || "{}");
     cfg.mcpServers = cfg.mcpServers || {};
     // Settings added by hand (KAIROS_MAX_RESULT_CHARS, for example) are kept.
-    const env = { ...((cfg.mcpServers.kairos && cfg.mcpServers.kairos.env) || {}), KAIROS_APPS: apps, KAIROS_WRITE: write };
+    const env = { ...((cfg.mcpServers.kairos && cfg.mcpServers.kairos.env) || {}), KAIROS_APPS: apps, KAIROS_WRITE: write, KAIROS_CONFIRM: confirm };
     cfg.mcpServers.kairos = { command: node, args: [server], env };
     const text = JSON.stringify(cfg, null, 2) + "\n";
     if (dry === "1") { process.stdout.write(JSON.stringify(cfg.mcpServers.kairos, null, 2) + "\n"); }
     else fs.writeFileSync(file, text);
-  ' "$CONFIG" "$PRIVATE_NODE" "$SERVER" "$APPS" "$WRITE" "$DRY"
+  ' "$CONFIG" "$PRIVATE_NODE" "$SERVER" "$APPS" "$WRITE" "$CONFIRM" "$DRY"
 }
 
 if [ "$DRY" = 1 ]; then
@@ -238,7 +259,7 @@ else
     ok "Backup: $(basename "$BACKUP")"
   fi
   edit_config
-  ok "Wrote the kairos entry (apps: $APPS, write: ${WRITE:-none})."
+  ok "Wrote the kairos entry (apps: $APPS, write: ${WRITE:-none}, previews: $CONFIRM)."
 fi
 
 # 6. Music play log (opt in): a LaunchAgent that saves play counts so Kairos can tell what

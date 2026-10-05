@@ -1,6 +1,8 @@
 // Configuration from env vars set in the Claude config.
 //   KAIROS_APPS   apps whose tools are listed (default: all)
 //   KAIROS_WRITE  apps whose write tools are listed (default: none)
+//   KAIROS_CONFIRM  on (default): changes and deletes show a preview first and need the user's yes;
+//                 off: they act at once (every change is still logged and can be undone)
 //   KAIROS_MAX_RESULT_CHARS  size of one result in characters; larger results come in parts
 //                 (default 20,000, from 5,000 to 100,000)
 
@@ -20,6 +22,7 @@ export const RESULT_CHARS = Object.freeze({ default: 20_000, min: 5_000, max: 10
  * @typedef {object} Config
  * @property {Set<App>} apps
  * @property {Set<App>} write
+ * @property {boolean} [confirm]  false when KAIROS_CONFIRM=off: no preview step (default true)
  * @property {number} [maxResultChars]  results larger than this come in parts (default RESULT_CHARS.default)
  * @property {string[]} warnings  problems worth logging to stderr
  */
@@ -51,7 +54,17 @@ export function readConfig(env = process.env) {
     else if (!apps.has(app)) warnings.push(`KAIROS_WRITE: ${app} is not in KAIROS_APPS; ignored.`);
     else write.add(app);
   }
-  return { apps, write, maxResultChars: resultChars(env.KAIROS_MAX_RESULT_CHARS, warnings), warnings };
+  return { apps, write, confirm: confirmSetting(env.KAIROS_CONFIRM, warnings), maxResultChars: resultChars(env.KAIROS_MAX_RESULT_CHARS, warnings), warnings };
+}
+
+/** KAIROS_CONFIRM: on (default) or off; yes/no, true/false and 1/0 work too. */
+function confirmSetting(raw, warnings) {
+  const v = String(raw ?? "").trim().toLowerCase();
+  if (v === "") return true;
+  if (["on", "yes", "true", "1"].includes(v)) return true;
+  if (["off", "no", "false", "0"].includes(v)) return false;
+  warnings.push(`KAIROS_CONFIRM: "${raw}" is neither on nor off; previews stay on.`);
+  return true;
 }
 
 /** KAIROS_MAX_RESULT_CHARS: a whole number, clamped to RESULT_CHARS.min..max. */

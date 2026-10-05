@@ -211,3 +211,40 @@ test("a finished write whose result is too large is reported as done, not as a f
   assert.equal(r.result.isError, undefined);
   assert.equal(r.result.structuredContent.paging.has_more, true);
 });
+
+test("KAIROS_CONFIRM=off: changes act at once, are still logged, and are described as one step", async () => {
+  const { UPDATE } = await import("../src/lib/tools.js");
+  const done = [];
+  const wipe = defineTool({
+    name: "notes_wipe", app: "notes", title: "Wipe", description: "Invented.", annotations: UPDATE,
+    inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: { type: "string" } } },
+    preview: async ({ id }) => ({ summary: `Wipe note ${id}.` }),
+    handler: async ({ id }) => { done.push(id); return { wiped: id, _journal: { action: "wipe", target: { kind: "note", id }, summary: `Wiped ${id}.`, undo: { possible: false, reason: "test" } } }; },
+  });
+  const on = createServer({ tools: [wipe], config: cfg({ KAIROS_APPS: "notes", KAIROS_WRITE: "notes" }) });
+  const off = createServer({ tools: [wipe], config: cfg({ KAIROS_APPS: "notes", KAIROS_WRITE: "notes", KAIROS_CONFIRM: "off" }) });
+  const list = async (s) => (await s.handle({ jsonrpc: "2.0", id: 1, method: "tools/list" })).result.tools.find((t) => t.name === "notes_wipe");
+  const init = async (s) => (await s.handle({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18" } })).result.instructions;
+
+  assert.match((await list(on)).description, /Two steps/);
+  assert.ok((await list(on)).inputSchema.properties.confirmation);
+  assert.match((await list(off)).description, /Acts immediately/);
+  assert.equal((await list(off)).inputSchema.properties.confirmation, undefined);
+  assert.match(await init(on), /two steps: the first call only returns a preview/);
+  assert.match(await init(off), /switched previews off: .* act immediately/);
+  assert.doesNotMatch(await init(off), /wait for a clear yes/);
+
+  const r = (await off.handle({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "notes_wipe", arguments: { id: "N1" } } })).result.structuredContent;
+  assert.equal(r.wiped, "N1");
+  assert.equal(r.confirmation, undefined, "no preview step");
+  assert.match(r.activity_id, /^act-/, "still logged");
+  assert.deepEqual(done, ["N1"]);
+});
+
+test("KAIROS_CONFIRM accepts on/off and friends; anything else keeps previews on with a warning", () => {
+  for (const v of ["off", "OFF", "no", "false", "0"]) assert.equal(cfg({ KAIROS_CONFIRM: v }).confirm, false, v);
+  for (const v of [undefined, "", "on", "yes", "true", "1"]) assert.equal(cfg({ KAIROS_CONFIRM: v }).confirm, true, String(v));
+  const bad = cfg({ KAIROS_CONFIRM: "sometimes" });
+  assert.equal(bad.confirm, true);
+  assert.match(bad.warnings.join(), /KAIROS_CONFIRM/);
+});

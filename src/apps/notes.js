@@ -839,7 +839,7 @@ export const tools = [
   }),
   defineTool({
     name: "notes_replace", app: "notes", title: "Replace a note's text", annotations: UPDATE, handler: notesReplace, preview: previewReplace,
-    description: `Replace the whole body of a note with Markdown, in place (same id, folder and creation date). Destructive, so two steps: the first call only returns a preview and a confirmation; show the preview, wait for the user's yes, then call again with the same arguments plus confirmation. Requires expected_modified from a fresh notes_read. Refused for locked notes, shared notes and notes in a shared folder, notes with attachments, and notes whose title is not unique. The old version is saved to a private backup file first. ${MD}`,
+    description: `Replace the whole body of a note with Markdown, in place (same id, folder and creation date). Requires expected_modified from a fresh notes_read. Refused for locked notes, shared notes and notes in a shared folder, notes with attachments, and notes whose title is not unique. The old version is saved to a private backup file first. ${MD}`,
     inputSchema: {
       type: "object", additionalProperties: false, required: ["id", "markdown", "expected_modified"],
       properties: {

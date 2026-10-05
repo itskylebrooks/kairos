@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+**Previews are now a setting**
+- New setting `KAIROS_CONFIRM` (installer: `./install.sh --confirm off`). On, the default, works as before: changes and deletes show a preview and wait for your yes. Off: they act at once, in one step, and Claude reports afterwards what changed. Everything else stays: every change is logged and can be undone, nothing is deleted permanently, shared places need agreement, and text from others is still marked as data.
+- The installer asks once when some app may write, and keeps the answer; the health check shows the setting; Claude's instructions and the tool descriptions follow it.
+
 ## 0.12.1 (2026-10-05)
 
 **Fixes**

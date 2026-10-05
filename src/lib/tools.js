@@ -35,6 +35,9 @@ export const CORE_APP = "kairos";
 
 const CONFIRMATION = { type: "string", description: "Leave out on the first call, which only previews. After the user said yes to the preview, repeat the call with the confirmation it returned." };
 
+const TWO_STEP = " Two steps: the first call only returns a preview and a confirmation; show the preview, wait for the user's yes, then call again with the same arguments plus confirmation.";
+const ONE_STEP = " Acts immediately (the user switched previews off): make only changes the user asked for, then tell the user exactly what changed; kairos_undo takes it back.";
+
 const CURSOR = { type: "string", description: "Leave out at first. When a result has paging.has_more, repeat the call with the same arguments plus cursor set to paging.cursor to get the next part." };
 const PARTS = " Large results come in parts (see paging and cursor).";
 
@@ -84,9 +87,19 @@ export function selectTools(tools, config) {
   });
 }
 
-/** @param {Tool} t  the shape sent in tools/list */
-export const describeTool = ({ name, title, description, inputSchema, annotations }) =>
-  ({ name, title, description, inputSchema, annotations: { title, ...annotations } });
+/**
+ * The shape sent in tools/list. Tools with a preview are described for the user's setting:
+ * two steps with a confirmation parameter, or (KAIROS_CONFIRM=off) one step without it.
+ * @param {Tool} t
+ * @param {{ confirm?: boolean }} [o]
+ */
+export function describeTool({ name, title, description, inputSchema, annotations, preview }, { confirm = true } = {}) {
+  if (preview && !confirm) {
+    const { confirmation, ...props } = /** @type {any} */ (inputSchema).properties;
+    return { name, title, description: description + ONE_STEP, inputSchema: { ...inputSchema, properties: props }, annotations: { title, ...annotations } };
+  }
+  return { name, title, description: preview ? description + TWO_STEP : description, inputSchema, annotations: { title, ...annotations } };
+}
 
 const typeOf = (v) => (v === null ? "null" : Array.isArray(v) ? "array" : Number.isInteger(v) ? "integer" : typeof v);
 const fits = (v, type) => {
