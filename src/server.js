@@ -14,7 +14,7 @@ import { DEFAULT_RESULT_CHARS, PREVIEW_NOTE, issueToken, limitResult, markUntrus
 import { describeTool, selectTools, validateArgs } from "./lib/tools.js";
 
 export const NAME = "kairos";
-export const VERSION = "0.12.1";
+export const VERSION = "0.13.0";
 
 /** Protocol versions this server implements, newest first. */
 export const PROTOCOL_VERSIONS = Object.freeze(["2025-11-25", "2025-06-18", "2025-03-26"]);
