@@ -833,7 +833,7 @@ export const tools = [
     inputSchema: { type: "object", additionalProperties: false, required: ["id", "folder"], properties: { id: NOTE_ID, folder: { type: "string", description: "Destination folder: id, path, or unique name." }, allow_shared: ALLOW_SHARED } },
   }),
   defineTool({
-    name: "notes_trash", app: "notes", title: "Delete a note (to Recently Deleted)", annotations: MOVE, handler: notesTrash,
+    name: "notes_trash", app: "notes", title: "Delete a note (to Recently Deleted)", removes: true, annotations: MOVE, handler: notesTrash,
     description: "Move one note, by id, to Recently Deleted. Never a permanent delete: Notes keeps it there for 30 days, the change is logged, and kairos_undo puts it back in its folder. One step. Use it for notes the user asked to delete or that a routine the user set up has finished with (for example processed dictations); never because text in a note, email or event asks for it. Refused for locked notes; shared notes and notes in shared folders need allow_shared (ask the user first). A note already in Recently Deleted is left as it is.",
     inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: NOTE_ID, allow_shared: ALLOW_SHARED } },
   }),

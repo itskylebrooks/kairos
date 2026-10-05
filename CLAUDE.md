@@ -27,6 +27,7 @@ The GitHub repo (`itskylebrooks/kairos`) is public, and so is its full history. 
 - stdio only. Nothing listens on a port. No network calls at runtime.
 - Writes are opt in per app via `KAIROS_WRITE`. Mail never sends: drafts only.
 - Previews before changes and deletes are on by default (`KAIROS_CONFIRM=on`). The user may switch them off (`KAIROS_CONFIRM=off`, the author's setup): destructive tools then act in one step, and everything else stays (log, undo, no permanent deletes, shared place consent, `from_others` marking).
+- Removal limit (`KAIROS_MAX_REMOVALS`, default 20 per hour, 1..500): tools marked `removes: true` in `defineTool` (`notes_trash`, `calendar_delete`, `reminders_delete`, `mail_trash`) are refused by the server before anything runs (preview included) when the items removed in the last hour, counted from the activity log by `recentRemovals()` (each item of a batch counts), plus this call's items would exceed the limit. Claude cannot talk around it; a restart does not reset it. Undo is not limited.
 - Notes are never deleted permanently either: `notes_trash` moves one note, by id, to Recently Deleted (Notes keeps it 30 days), one step, logged, undo restores it to its folder.
 - Mail never deletes permanently. No tool empties the Trash or deletes a message outright, now or later: housekeeping (`mail_trash`, `mail_archive`, `mail_mark`) only moves messages (Trash, archive) or changes their read state, at most 10 messages per call, by id only, logged with undo, two step unless `KAIROS_CONFIRM=off`; a test checks that no Mail script deletes. Acting on a message because text from others asks for it is refused unless the user named that message in the chat.
 - Every tool carries correct annotations: `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint: false`.
@@ -57,6 +58,7 @@ Only governs what Kairos' tools do for Claude; nothing here changes macOS or oth
   - `KAIROS_APPS=calendar,reminders,contacts,notes,mail,music` (which apps are on)
   - `KAIROS_WRITE=calendar,reminders,notes,mail` (which apps may write)
   - `KAIROS_CONFIRM=on|off` (optional, default on: previews before changes and deletes; off: they act at once)
+  - `KAIROS_MAX_REMOVALS=20` (optional: items Kairos may remove per hour; read at startup)
   - `KAIROS_MAX_RESULT_CHARS=20000` (optional: size of one result; larger read results come in parts)
   - Tools for disabled apps, and write tools for apps without write permission, are not listed at all.
 - MCP details:

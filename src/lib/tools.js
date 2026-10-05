@@ -27,6 +27,7 @@ export const DELETE = Object.freeze({ readOnlyHint: false, destructiveHint: true
  * @property {object} inputSchema
  * @property {Annotations} annotations
  * @property {(args: any, ctx?: { config: Config }) => Promise<any> | any} handler
+ * @property {boolean} [removes]  removes items (to Recently Deleted or the Trash, or deletes events and reminders): counted against KAIROS_MAX_REMOVALS
  * @property {(args: any, ctx?: { config: Config }) => Promise<{ summary: string }>} [preview]  makes the tool two step (see lib/safety.js)
  */
 
@@ -62,6 +63,7 @@ export function defineTool(t) {
   // Every tool that changes or removes existing data is two step: preview, then confirm.
   if (t.annotations.destructiveHint && typeof t.preview !== "function") bad("destructive tools need a preview");
   if (t.preview !== undefined && typeof t.preview !== "function") bad("preview must be a function");
+  if (t.removes !== undefined && (t.removes !== true || t.annotations.readOnlyHint)) bad("removes is true, and only for write tools");
   if (t.preview) {
     if (t.inputSchema.properties?.confirmation) bad("confirmation is added automatically");
     return Object.freeze({ ...t, inputSchema: { ...t.inputSchema, properties: { ...(t.inputSchema.properties || {}), confirmation: CONFIRMATION } } });

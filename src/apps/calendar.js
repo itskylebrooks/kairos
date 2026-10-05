@@ -420,7 +420,7 @@ export const tools = [
     },
   }),
   defineTool({
-    name: "calendar_delete", app: "calendar", title: "Delete an event", annotations: DELETE, handler: calendarDelete, preview: previewDelete,
+    name: "calendar_delete", app: "calendar", title: "Delete an event", removes: true, annotations: DELETE, handler: calendarDelete, preview: previewDelete,
     description: "Delete one event by id. Repeating events are refused: delete those in the Calendar app.",
     inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: EVENT_ID } },
   }),

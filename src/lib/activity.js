@@ -37,6 +37,31 @@ export function record(e, now = new Date()) {
   return entry;
 }
 
+/**
+ * Items removed by these tools within the last `windowMs`, read from the log (this month's
+ * file and last month's, which an hour can reach back into), with the time of the oldest one.
+ * An entry whose `before` lists several items (mail_trash) counts each of them.
+ * @param {Set<string>} tools
+ */
+export function recentRemovals(tools, windowMs = 3600e3, now = Date.now()) {
+  const from = now - windowMs;
+  const months = new Set([fileFor(new Date(now)), fileFor(new Date(from))]);
+  let count = 0, oldest = null;
+  for (const f of months) {
+    if (!existsSync(f)) continue;
+    for (const line of readFileSync(f, "utf8").split("\n")) {
+      if (!line.trim()) continue;
+      let e;
+      try { e = JSON.parse(line); } catch { continue; }
+      const t = Date.parse(e?.t);
+      if (!tools.has(e?.tool) || !(t > from) || t > now) continue;
+      count += Array.isArray(e.before) ? e.before.length : 1;
+      if (oldest === null || t < oldest) oldest = t;
+    }
+  }
+  return { count, oldest };
+}
+
 /** Every entry, oldest first. Damaged lines are skipped. */
 export function readAll() {
   if (!existsSync(activityDir())) return [];

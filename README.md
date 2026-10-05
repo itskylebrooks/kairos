@@ -139,7 +139,7 @@ Process my dictation inbox in Apple Notes with the Kairos tools. Do not ask me a
    - A draft (an essay, a post, an idea to write up): create a note with notes_create in the folder "Drafts" with a short fitting title and my text, cleaned up but in my words.
    - Several of these in one dictation: split it and handle each part.
    - Unclear: leave the dictation as it is.
-4. Only when everything from a dictation was created successfully, delete the dictation with notes_trash. If any step failed, keep it, so the next run tries again.
+4. Only when everything from a dictation was created successfully, delete the dictation with notes_trash. If any step failed, keep it, so the next run tries again. If notes_trash is refused because of the removal limit, stop and leave the remaining dictations for the next run.
 5. End with a short summary: how many dictations, what was created where, and what was left and why.
 ```
 
@@ -199,6 +199,7 @@ Everything below applies only to what Kairos' tools do for Claude. Kairos change
 - **Shared places need consent.** Writing into a shared note or folder is refused unless you agreed, because other people can read it. Replacing a shared note, or a note in a shared folder, is always refused.
 - **Text from other people is marked.** Emails, events from read only calendars, shared notes and notes in shared folders come back flagged `from_others`, with invisible characters removed and their text fields listed as untrusted. Only your own mail in sent, drafts and outbox mailboxes is left unmarked: a sender address alone can be forged, so a message in your inbox that claims to be from you is still treated as someone else's.
 - **Every change is logged and can be undone.** See "Activity log and undo" above.
+- **A limit on removals, enforced by Kairos itself.** At most 20 items per hour can be removed (notes deleted, events and reminders deleted, mail moved to the Trash). A call that would go over is refused before anything happens, whatever Claude was told; the count comes from the activity log, so a restart or a new chat does not reset it. Creating, moving, archiving and marking are not counted. Change the number with `KAIROS_MAX_REMOVALS` (1 to 500) in the `env` of the `kairos` entry in Claude's config, then restart Claude.
 - **Safety nets.** Kairos never deletes a note permanently: `notes_trash` (and undoing a note Kairos created) moves it to Recently Deleted, where Notes keeps it for 30 days, `notes_replace` keeps a private backup, repeating events are never changed through Kairos, and no single result is larger than 20,000 characters: larger ones come in parts.
 
 **What depends on Claude:** following the rule that text from others is data, and asking you before answering a preview with a confirmation. Kairos makes this as hard to get wrong as it can (Claude never sees a change happen without a preview step), but it cannot tell whether *you* said yes.

@@ -8,7 +8,8 @@ import { ALL_TOOLS } from "./apps/index.js";
 import { readConfig } from "./lib/config.js";
 import { UserError } from "./lib/errors.js";
 import { sealScripts } from "./lib/osascript.js";
-import { record } from "./lib/activity.js";
+import { record, recentRemovals } from "./lib/activity.js";
+import { REMOVALS } from "./lib/config.js";
 import { fitResult } from "./lib/paging.js";
 import { DEFAULT_RESULT_CHARS, PREVIEW_NOTE, issueToken, limitResult, markUntrusted, redeemToken } from "./lib/safety.js";
 import { describeTool, selectTools, validateArgs } from "./lib/tools.js";
@@ -56,6 +57,24 @@ export function createServer({ tools = ALL_TOOLS, config = readConfig() } = {}) 
   const active = selectTools(tools, config);
   const byName = new Map(active.map((t) => [t.name, t]));
   const confirm = config.confirm !== false; // KAIROS_CONFIRM=off: no preview step
+  const maxRemovals = config.maxRemovals ?? REMOVALS.default;
+  const removers = new Set(active.filter((t) => t.removes).map((t) => t.name));
+
+  /**
+   * The removal limit, enforced here and not left to Claude: at most maxRemovals items removed
+   * per hour, counted from the activity log (so a restart or a new chat does not reset it).
+   * A call that would go over is refused before anything runs.
+   */
+  function checkRemovals(tool, args) {
+    if (!tool.removes) return;
+    const n = Array.isArray(args.ids) ? args.ids.length : 1;
+    let r;
+    try { r = recentRemovals(removers); } catch { throw new UserError("Kairos could not read its activity log to check the removal limit, so nothing was removed."); }
+    if (r.count + n > maxRemovals) {
+      const free = r.oldest ? new Date(r.oldest + 3600e3).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : null;
+      throw new UserError(`Removal limit reached: Kairos removed ${r.count} item${r.count === 1 ? "" : "s"} in the last hour and allows ${maxRemovals} per hour (KAIROS_MAX_REMOVALS). Nothing was removed. ${free ? `Try again after ${free}` : "Try again later"}, or ask the user; do not try to get around the limit.`);
+    }
+  }
   const listed = active.map((t) => describeTool(t, { confirm }));
   /** What tools may know about the server: its configuration (for permission checks). */
   const ctx = Object.freeze({ config });
@@ -80,15 +99,18 @@ export function createServer({ tools = ALL_TOOLS, config = readConfig() } = {}) 
       } else if (tool.preview && !confirm) {
         // Previews are off (KAIROS_CONFIRM=off): the change runs at once, and is logged as usual.
         const { confirmation, ...rest } = args;
+        checkRemovals(tool, rest);
         data = await tool.handler(rest, ctx);
       } else if (tool.preview) {
         // Two step: without a confirmation nothing changes, the tool only previews.
         const { confirmation, ...rest } = args;
         if (confirmation === undefined) {
+          checkRemovals(tool, rest); // no preview for a removal the limit would refuse anyway
           const { summary, ...details } = await tool.preview(rest, ctx);
           data = { changed: false, preview: summary, ...details, confirmation: issueToken(name, rest), expires_in_minutes: 10, note: PREVIEW_NOTE };
           previewed = true;
         } else {
+          checkRemovals(tool, rest);
           redeemToken(name, rest, confirmation);
           data = await tool.handler(rest, ctx);
         }

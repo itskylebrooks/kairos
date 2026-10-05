@@ -354,7 +354,7 @@ export const tools = [
     inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: REM_ID, completed: { type: "boolean", description: "Default true." } } },
   }),
   defineTool({
-    name: "reminders_delete", app: "reminders", title: "Delete a reminder", annotations: DELETE, handler: remindersDelete, preview: previewDelete,
+    name: "reminders_delete", app: "reminders", title: "Delete a reminder", removes: true, annotations: DELETE, handler: remindersDelete, preview: previewDelete,
     description: "Delete one reminder by id.",
     inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: REM_ID } },
   }),

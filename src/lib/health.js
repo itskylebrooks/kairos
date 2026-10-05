@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { recentRemovals } from "./activity.js";
 import { addDays, localDay, startOfDay } from "./dates.js";
 import { isPermissionError } from "./errors.js";
 import { eventkit } from "./eventkit.js";
@@ -77,6 +78,9 @@ export function samePath(a, b) {
   return typeof a === "string" && typeof b === "string" && real(a) === real(b);
 }
 
+const REMOVERS = new Set(["notes_trash", "calendar_delete", "reminders_delete", "mail_trash"]);
+const removalsNow = () => { try { return recentRemovals(REMOVERS).count; } catch { return "?"; } };
+
 const kairosVersion = (root) => { try { return JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version; } catch { return null; } };
 
 /**
@@ -103,7 +107,7 @@ export async function checkHealth({ config, apps, root = ROOT, execPath = proces
   const enabled = [...config.apps].join(", ") || "none";
   const writes = [...config.write].join(", ") || "none";
   add("kairos", "settings", config.warnings.length ? "warning" : "ok",
-    `Apps: ${enabled}. May write: ${writes}. Previews before changes: ${config.confirm === false ? "off" : "on"}. Result size: ${(config.maxResultChars ?? 20000).toLocaleString("en")} characters.${config.warnings.length ? " " + config.warnings.join(" ") : ""}`,
+    `Apps: ${enabled}. May write: ${writes}. Previews before changes: ${config.confirm === false ? "off" : "on"}. Removal limit: ${config.maxRemovals ?? 20} per hour (${removalsNow()} in the last hour). Result size: ${(config.maxResultChars ?? 20000).toLocaleString("en")} characters.${config.warnings.length ? " " + config.warnings.join(" ") : ""}`,
     config.warnings.length ? "Fix the setting named above in the kairos entry of Claude's config, or run ./install.sh." : undefined);
 
   // Kairos' private folders must be readable by the user only.

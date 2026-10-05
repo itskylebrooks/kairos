@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+**A limit on removals**
+- Kairos now removes at most 20 items per hour: notes deleted, events and reminders deleted, mail moved to the Trash. A call that would go over is refused by the Kairos server before anything happens, so a confused or fooled Claude cannot remove more, whatever it was told. The count comes from the activity log, so a restart or a new chat does not reset it. Creating, moving, archiving and marking are not counted, and undo is never limited.
+- Set the number with `KAIROS_MAX_REMOVALS` (1 to 500); the health check shows the limit and how many removals the last hour holds. The dictation routine prompt in the README stops at the limit and leaves the rest for its next run.
+
 ## 0.14.0 (2026-10-05)
 
 **Mail housekeeping**

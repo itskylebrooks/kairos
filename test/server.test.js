@@ -248,3 +248,7 @@ test("KAIROS_CONFIRM accepts on/off and friends; anything else keeps previews on
   assert.equal(bad.confirm, true);
   assert.match(bad.warnings.join(), /KAIROS_CONFIRM/);
 });
+
+test("exactly the tools that remove things count against the removal limit", () => {
+  assert.deepEqual(ALL_TOOLS.filter((t) => t.removes).map((t) => t.name).sort(), ["calendar_delete", "mail_trash", "notes_trash", "reminders_delete"]);
+});
