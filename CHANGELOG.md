@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.12.0 (2026-10-05)
 
 **Notes**
 - New tool `notes_trash`: moves one note, by id, to Recently Deleted. Never a permanent delete: Notes keeps it there for 30 days, the change is logged, and `kairos_undo` puts it back in its folder. One step, like moving, so a routine can delete processed notes on its own. Refused for locked notes; shared notes need agreement.
