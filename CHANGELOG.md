@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.10.0 (2026-10-05)
 
 **Health check**
 - New tool `kairos_health`: ask Claude "is Kairos set up correctly?". It checks every enabled app's macOS permissions (Automation, Calendars, Reminders), Kairos' Notes shortcuts and their access to Notes, the private Node and the EventKit helper (against its pinned checksums), the settings, the privacy of Kairos' folders, and the Music play log, and gives a fix in plain words for each problem.
