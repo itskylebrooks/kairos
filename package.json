@@ -1,6 +1,6 @@
 {
   "name": "kairos",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "Local MCP server for Apple Calendar, Reminders, Contacts, Notes, Mail and Music on macOS. stdio only, no Full Disk Access.",
   "private": true,
   "type": "module",
