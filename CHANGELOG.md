@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+**Fixes**
+- **Notes:** a folder created moments ago was reported as unknown for up to a minute (Kairos keeps the folder list for 60 seconds). An unknown folder name now reads the list again once before giving up.
+
 ## 0.11.0 (2026-10-05)
 
 **Notes**

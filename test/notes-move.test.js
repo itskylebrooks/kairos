@@ -114,3 +114,16 @@ test("refused: Recently Deleted either way, other accounts, shared places withou
   assert.equal(same.activity_id, undefined, "moving to where the note already is changes nothing and is not logged");
   assert.equal((await call("kairos_activity", { since: "2020-01-01" })).total, 0);
 });
+
+test("a folder created moments ago is found: an unknown name reads the folder list again once", async () => {
+  const before = { ...FOLDERS, folders: FOLDERS.folders.filter((f) => f.id !== F(6)) };
+  const fx = { osascript: { "notes.folders": [{ once: true, output: before }, { output: FOLDERS }], "notes.scan": [{ output: [] }] } };
+  setFakeFixtures(fx);
+  const call = server();
+  await call("notes_folders", {}); // the cache now holds the list from before the new folder
+  assert.equal(fx.calls.osascript.filter((c) => c.name === "notes.folders").length, 1);
+  const r = await call("notes_list", { folder: "Dictations/Processed" });
+  assert.equal(r.total, 0, r.error);
+  assert.equal(fx.calls.osascript.filter((c) => c.name === "notes.folders").length, 2, "read again once");
+  assert.match((await call("notes_list", { folder: "Nowhere" })).error, /No Notes folder "Nowhere"/);
+});

@@ -168,9 +168,12 @@ async function folderTree({ fresh = false } = /** @type {any} */ ({})) {
   return folderCache;
 }
 
-/** Folder argument (id, path like "iCloud/Work/Projects", or unique name) to a folder. */
-async function resolveFolder(arg) {
-  const { folders, byId } = await folderTree();
+/**
+ * Folder argument (id, path like "iCloud/Work/Projects", or unique name) to a folder. A folder
+ * the cached list does not know may be new: read the folders again once before giving up.
+ */
+async function resolveFolder(arg, fresh = false) {
+  const { folders, byId } = await folderTree({ fresh });
   const s = String(arg).trim();
   if (byId.has(s)) return byId.get(s);
   const lc = s.toLowerCase().replace(/\/+$/, "");
@@ -178,6 +181,7 @@ async function resolveFolder(arg) {
   if (!hits.length) hits = folders.filter((f) => f.path.toLowerCase().split("/").slice(1).join("/") === lc);
   if (!hits.length && !s.includes("/")) hits = folders.filter((f) => f.name.toLowerCase() === lc);
   if (hits.length === 1) return hits[0];
+  if (!hits.length && !fresh) return resolveFolder(arg, true);
   if (!hits.length) throw new UserError(`No Notes folder "${s}". Use notes_folders to see folder ids and paths.`);
   throw new UserError(`"${s}" matches ${hits.length} folders: ${hits.map((f) => f.path).join(", ")}. Pass the folder id or full path.`);
 }
