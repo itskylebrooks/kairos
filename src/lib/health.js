@@ -4,7 +4,7 @@
 // macOS has not asked about yet shows its prompt here: answering it is the fix. The report
 // holds counts and states only, never personal data.
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { addDays, localDay, startOfDay } from "./dates.js";
@@ -67,6 +67,16 @@ export function helperPins(root = ROOT) {
   } catch { return { event: null, disclaim: null }; }
 }
 
+/**
+ * Whether two paths name the same file. macOS folders are case insensitive, so Claude may
+ * start Kairos as ".../Kairos/..." while it lives in ".../kairos/...": compare real paths.
+ * @param {string} a @param {string} b
+ */
+export function samePath(a, b) {
+  const real = (p) => { try { return realpathSync.native(p); } catch { return p; } };
+  return typeof a === "string" && typeof b === "string" && real(a) === real(b);
+}
+
 const kairosVersion = (root) => { try { return JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version; } catch { return null; } };
 
 /**
@@ -87,7 +97,7 @@ export async function checkHealth({ config, apps, root = ROOT, execPath = proces
 
   const node = join(root, "runtime", "node-kairos");
   if (!existsSync(node)) add("kairos", "private Node", "problem", "Kairos' private Node is missing.", "Run ./install.sh in the Kairos folder.");
-  else if (execPath !== node) add("kairos", "private Node", "warning", "Kairos is running on a Node other than its private one, so macOS permissions belong to that Node instead.", "Run ./install.sh, then quit Claude (Cmd+Q) and open it again.");
+  else if (!samePath(execPath, node)) add("kairos", "private Node", "warning", "Kairos is running on a Node other than its private one, so macOS permissions belong to that Node instead.", "Run ./install.sh, then quit Claude (Cmd+Q) and open it again.");
   else add("kairos", "private Node", "ok", "Kairos runs on its private Node.");
 
   const enabled = [...config.apps].join(", ") || "none";

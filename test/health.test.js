@@ -12,7 +12,7 @@ import { tools } from "../src/apps/kairos.js";
 import { readConfig } from "../src/lib/config.js";
 import { UserError } from "../src/lib/errors.js";
 import { setFakeFixtures } from "../src/lib/fake.js";
-import { checkHealth, helperPins } from "../src/lib/health.js";
+import { checkHealth, helperPins, samePath } from "../src/lib/health.js";
 import { agentsDir, dataDir } from "../src/lib/paths.js";
 
 afterEach(() => setFakeFixtures(null));
@@ -188,4 +188,11 @@ test("terminal command: reports a missing or misplaced kairos entry in Claude's 
   const moved = runCli({ mcpServers: { kairos: { command: "/somewhere/else/node-kairos", args: ["/somewhere/else/src/server.js"] } } });
   assert.match(moved.report.checks[0].detail, /another folder/);
   rmSync(dir, { recursive: true, force: true });
+});
+
+test("paths that differ only in case name the same file (macOS folders are case insensitive)", { skip: process.platform !== "darwin" }, () => {
+  const root = fakeRoot();
+  const node = join(root, "runtime", "node-kairos");
+  assert.equal(samePath(node, node.replace("runtime", "RUNTIME")), true);
+  assert.equal(samePath(node, join(root, "runtime", "other")), false);
 });
