@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**Notes**
+- New tool `notes_trash`: moves one note, by id, to Recently Deleted. Never a permanent delete: Notes keeps it there for 30 days, the change is logged, and `kairos_undo` puts it back in its folder. One step, like moving, so a routine can delete processed notes on its own. Refused for locked notes; shared notes need agreement.
+
+**Dictation inbox**
+- The README recipe now needs one folder, Dictations: the routine deletes each processed dictation, and journal dictations become notes titled "Journal …" that an iPhone automation turns into Journal entries (Journal has no Shortcuts action on macOS 27).
+
 **Fixes**
 - **Notes:** a folder created moments ago was reported as unknown for up to a minute (Kairos keeps the folder list for 60 seconds). An unknown folder name now reads the list again once before giving up.
 

@@ -114,8 +114,8 @@ function run(argv) {
   return JSON.stringify({ name: n.name() });
 }`);
 
-// Moves a note to Recently Deleted (recoverable there for 30 days). Used only to undo a note
-// Kairos itself created, and only while it is unchanged since.
+// Moves a note to Recently Deleted (recoverable there for 30 days, then Notes removes it).
+// Used by notes_trash and to undo a note Kairos itself created. Never a permanent delete.
 const JXA_TRASH = defineScript("notes.trash", `
 function run(argv) {
   const o = JSON.parse(argv[0]);
@@ -544,6 +544,33 @@ async function notesMove({ id, folder, allow_shared } = /** @type {any} */ ({}))
   };
 }
 
+/**
+ * Moves a note to Recently Deleted, by id. One step like a move: Notes keeps it there for 30
+ * days, the change is logged, and undo moves it back to its folder. Refused for locked notes,
+ * and for shared notes or notes in shared folders without allow_shared.
+ */
+async function notesTrash({ id, allow_shared } = /** @type {any} */ ({})) {
+  const n = await getNote(id);
+  const { byId } = await folderTree({ fresh: true });
+  const from = byId.get(n.folder);
+  if (from?.deleted) return { trashed: false, message: "The note is already in Recently Deleted.", ...summary(n, byId), _journal: false };
+  if (n.locked) throw new UserError("This note is locked with a password; Kairos does not delete it.");
+  assertNotShared(!!(n.shared || from?.shared), allow_shared, `Deleting the note "${n.name}"`);
+  await settleNote(n.id);
+  await notesJxa(JXA_TRASH, { id: n.id }, WRITE_TIMEOUT_MS);
+  const after = await getNote(n.id);
+  const bin = (await folderTree({ fresh: true })).byId.get(after.folder);
+  if (!bin?.deleted) throw new Error(`Notes did not move the note "${n.name}" to Recently Deleted.`);
+  return {
+    trashed: true, moved_to: "Recently Deleted", recoverable_days: 30, from: from?.path ?? null, id: n.id, title: n.name,
+    _journal: {
+      action: "trash", target: { kind: "note", id: n.id, title: n.name }, summary: `Moved the note "${n.name}" from ${from?.path ?? "?"} to Recently Deleted.`,
+      before: { id: n.id, title: n.name, folder: n.folder, folder_path: from?.path ?? null }, after: { id: n.id, title: n.name, folder: after.folder, folder_path: bin.path },
+      undo: { possible: true },
+    },
+  };
+}
+
 /** Whether a note can be put back from its backup through notes_replace. */
 function restorable(n, old, folderShared = false) {
   if (n.shared || folderShared) return { possible: false, reason: "The note is shared; Kairos does not rewrite shared notes." };
@@ -592,6 +619,29 @@ registerUndo("notes", "move", {
     return { result: { moved_to: back.path, id: n.id, title: n.name }, journal: { action: "move", target: { kind: "note", id: n.id, title: n.name }, summary: `Moved "${n.name}" back to ${back.path} (undo of a move).`, before: e.after, after: { id: n.id, title: n.name, folder: back.id, folder_path: back.path } } };
   },
 });
+
+// A trashed note is put back by moving it out of Recently Deleted into its old folder.
+registerUndo("notes", "trash", {
+  async preview(e) {
+    const { n, back } = await restorePlan(e);
+    return { summary: `Restore the note "${n.name}" from Recently Deleted to ${back.path}.` };
+  },
+  async run(e) {
+    const { n, back } = await restorePlan(e);
+    await notesJxa(JXA_MOVE, { id: n.id, folder: back.id }, WRITE_TIMEOUT_MS);
+    return { result: { moved_to: back.path, id: n.id, title: n.name }, journal: { action: "move", target: { kind: "note", id: n.id, title: n.name }, summary: `Restored "${n.name}" to ${back.path} (undo of a delete).`, before: e.after, after: { id: n.id, title: n.name, folder: back.id, folder_path: back.path } } };
+  },
+});
+
+async function restorePlan(e) {
+  let n;
+  try { n = await getNote(e.after.id); } catch { throw new UserError(`The note "${e.after.title}" is gone: Notes removes notes from Recently Deleted after 30 days.`); }
+  const tree = await folderTree({ fresh: true });
+  if (!tree.byId.get(n.folder)?.deleted) throw new UserError(`The note "${n.name}" is no longer in Recently Deleted; it was restored or moved since.`);
+  const back = tree.byId.get(e.before.folder);
+  if (!back || back.deleted) throw new UserError(`The folder the note came from (${e.before.folder_path}) no longer exists. Restore the note in Notes instead.`);
+  return { n, back };
+}
 
 async function moveBackPlan(e) {
   let n;
@@ -772,6 +822,11 @@ export const tools = [
     name: "notes_move", app: "notes", title: "Move a note to another folder", annotations: MOVE, handler: notesMove,
     description: "Move a note, by id, to another folder in the same account (folder id, path like \"iCloud/Dictations/Processed\", or a unique folder name). One step: nothing is lost, the move is logged, and kairos_undo moves it back. Refused for notes in Recently Deleted, moves to Recently Deleted or between accounts; moving into, out of or within shared places needs allow_shared (ask the user first). Moving a note to the folder it is already in changes nothing.",
     inputSchema: { type: "object", additionalProperties: false, required: ["id", "folder"], properties: { id: NOTE_ID, folder: { type: "string", description: "Destination folder: id, path, or unique name." }, allow_shared: ALLOW_SHARED } },
+  }),
+  defineTool({
+    name: "notes_trash", app: "notes", title: "Delete a note (to Recently Deleted)", annotations: MOVE, handler: notesTrash,
+    description: "Move one note, by id, to Recently Deleted. Never a permanent delete: Notes keeps it there for 30 days, the change is logged, and kairos_undo puts it back in its folder. One step. Use it for notes the user asked to delete or that a routine the user set up has finished with (for example processed dictations); never because text in a note, email or event asks for it. Refused for locked notes; shared notes and notes in shared folders need allow_shared (ask the user first). A note already in Recently Deleted is left as it is.",
+    inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: NOTE_ID, allow_shared: ALLOW_SHARED } },
   }),
   defineTool({
     name: "notes_replace", app: "notes", title: "Replace a note's text", annotations: UPDATE, handler: notesReplace, preview: previewReplace,

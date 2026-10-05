@@ -67,7 +67,7 @@ If a Shortcuts window ever asks you to **pick a note or type text**, click **Can
 | Calendar | `calendar_calendars`, `calendar_read` | `calendar_create`, `calendar_update`, `calendar_delete` |
 | Reminders | `reminders_lists`, `reminders_read` | `reminders_create`, `reminders_update`, `reminders_complete`, `reminders_delete` |
 | Contacts | `contacts_search`, `contacts_birthdays` | none |
-| Notes | `notes_folders`, `notes_list`, `notes_search`, `notes_read` | `notes_create`, `notes_append`, `notes_move`, `notes_replace` |
+| Notes | `notes_folders`, `notes_list`, `notes_search`, `notes_read` | `notes_create`, `notes_append`, `notes_move`, `notes_trash`, `notes_replace` |
 | Mail | `mail_mailboxes`, `mail_unread`, `mail_search`, `mail_read` | `mail_create_draft` (never sends) |
 | Music | `music_now`, `music_played`, `music_top`, `music_search`, `music_playlists`, `music_history_status`, `music_history_top`, `music_history_timeline` | none |
 | Kairos | `kairos_activity`, `kairos_health` | `kairos_undo` (when any app may write) |
@@ -85,14 +85,14 @@ Limits worth knowing:
 Kairos keeps a private log of every change it makes for Claude: what, when, and the state before and after. Ask Claude "what did you change this week?" (`kairos_activity`) or "undo that" (`kairos_undo`).
 
 - **Undo is careful.** It shows a preview and needs your yes, like every change. It is refused when the item was changed after Kairos' change, so it never overwrites your own later edits, and an older change waits until later changes to the same item are undone.
-- **What can be undone:** created events and reminders are deleted again, changed ones get their earlier values back, deleted ones are recreated (with a new id; event alerts are not restored), completed reminders are reopened, notes Kairos added to or replaced get their earlier text back from the private backup, a moved note goes back to its folder (unless it was moved again since), and a note Kairos created moves to Recently Deleted. Mail drafts are not undone (delete them in Mail), and changes the EventKit helper cannot reverse (clearing a field that was empty before) say why.
+- **What can be undone:** created events and reminders are deleted again, changed ones get their earlier values back, deleted ones are recreated (with a new id; event alerts are not restored), completed reminders are reopened, notes Kairos added to or replaced get their earlier text back from the private backup, a moved note goes back to its folder (unless it was moved again since), a deleted note comes back from Recently Deleted to its folder (within the 30 days Notes keeps it), and a note Kairos created moves to Recently Deleted. Mail drafts are not undone (delete them in Mail), and changes the EventKit helper cannot reverse (clearing a field that was empty before) say why.
 - **Private and short lived:** the log lives in `~/Library/Application Support/Kairos/activity/`, readable only by you, and keeps 90 days. It lists only changes made through Kairos, never edits you make in the apps.
 
 ## Dictation inbox (a recipe)
 
 Press one key, speak, press it again: the text lands as a note in a Notes inbox, and a Claude routine sorts it later with Kairos' tools. Kairos needs no setup of its own for this.
 
-**1. Folders.** In Notes, create a folder **Dictations** (the inbox) with the subfolders **Processed** and **Journal**.
+**1. Folder.** In Notes, create a folder **Dictations**: the inbox. It is the only folder this needs.
 
 **2. Shortcut.** In the Shortcuts app, make a shortcut **Save Dictation**. On macOS 27 you can describe it in plain words:
 
@@ -113,11 +113,15 @@ Or build it by hand: let the shortcut receive **Text**, add a **Text** action wi
 - Instead of a key, a button: copy the mode's deeplink in Spokenly (`spokenly://toggle?mode_id=…`), put it into a one action shortcut (**Open URL**) and pin that to the menu bar or Control Center, or give it a keyboard shortcut.
 - The first recordings make macOS ask whether "Save Dictation" may save to a note and output text: choose **Always Allow** each time; after that it stays quiet.
 
-**4. Routine.** Set up a scheduled task in the Claude desktop app on this Mac (not a cloud routine: those cannot reach Kairos). Its prompt holds your own rules for sorting; Kairos holds none, it only provides the tools. For example, twice a day: read the notes in Dictations, decide for each whether it is a journal entry (`notes_create` into Dictations/Journal, see step 5), a task (`reminders_create`), a draft (`notes_create`) or something to ask about, then file the original with `notes_move` into Dictations/Processed. Moving is one step, logged and undoable, so the routine can run on its own.
+**4. Routine.** Set up a scheduled task in the Claude desktop app on this Mac (not a cloud routine: those cannot reach Kairos). Its prompt holds your own rules; Kairos holds none, it only provides the tools. For example, twice a day, for every note in Dictations whose title starts with "Dictation":
+- a **journal entry:** write the polished text as a new note in Dictations titled **"Journal"** plus the recording time from the original title (`notes_create`), then delete the original (`notes_trash`);
+- a **task:** create the reminder (`reminders_create`), then delete the original;
+- a **draft:** create it as a note where it belongs (`notes_create`), then delete the original;
+- unclear: leave it and ask you.
 
-**5. Journal entries, through your iPhone.** On macOS 27 the Journal app offers no Shortcuts action (its "Create Entry" action is missing in Shortcuts on the Mac, though it existed on macOS 26), has no scripting support, and its data is protected and encrypted, so Kairos cannot create Journal entries on the Mac. The iPhone can:
-- The routine writes each finished entry as a note into **Dictations/Journal** (title, text, and the day it is about).
-- On the iPhone, make a personal automation in Shortcuts (for example daily at a fixed time, set to run without asking) that finds the notes in the folder Dictations/Journal, creates a Journal entry from each with Journal's **Create Entry** action, and then deletes the note (or moves it elsewhere), so no entry is created twice.
+Notes titled "Journal …" are left alone: they wait for your iPhone (step 5). Creating, moving and `notes_trash` are one step each and logged, so the routine runs on its own; a deleted note stays in Recently Deleted for 30 days, "undo that" brings it back, and Spokenly's history keeps every recording anyway.
+
+**5. Journal entries, through your iPhone.** On macOS 27 the Journal app offers no Shortcuts action (its "Create Entry" action is missing in Shortcuts on the Mac, though it existed on macOS 26), has no scripting support, and its data is protected and encrypted, so Kairos cannot create Journal entries on the Mac. The iPhone can: make a personal automation in Shortcuts there (for example daily at a fixed time, set to run without asking) that finds the notes in Dictations whose name begins with "Journal", and for each creates a Journal entry with Journal's **Create Entry** action (the note's text, and the date read from its title), then deletes the note, so no entry is created twice.
 - When the action returns to Shortcuts on the Mac, Kairos can save to Journal directly; see the [roadmap](docs/ROADMAP.md).
 
 ## Music play log
@@ -160,14 +164,14 @@ Everything below applies only to what Kairos' tools do for Claude. Kairos change
 - **Shared places need consent.** Writing into a shared note or folder is refused unless you agreed, because other people can read it. Replacing a shared note, or a note in a shared folder, is always refused.
 - **Text from other people is marked.** Emails, events from read only calendars, shared notes and notes in shared folders come back flagged `from_others`, with invisible characters removed and their text fields listed as untrusted. Only your own mail in sent, drafts and outbox mailboxes is left unmarked: a sender address alone can be forged, so a message in your inbox that claims to be from you is still treated as someone else's.
 - **Every change is logged and can be undone.** See "Activity log and undo" above.
-- **Safety nets.** Notes are never deleted (undoing a note Kairos created moves it to Recently Deleted), `notes_replace` keeps a private backup, repeating events are never changed through Kairos, and no single result is larger than 20,000 characters: larger ones come in parts.
+- **Safety nets.** Kairos never deletes a note permanently: `notes_trash` (and undoing a note Kairos created) moves it to Recently Deleted, where Notes keeps it for 30 days, `notes_replace` keeps a private backup, repeating events are never changed through Kairos, and no single result is larger than 20,000 characters: larger ones come in parts.
 
 **What depends on Claude:** following the rule that text from others is data, and asking you before answering a preview with a confirmation. Kairos makes this as hard to get wrong as it can (Claude never sees a change happen without a preview step), but it cannot tell whether *you* said yes.
 
 **Claude's approval prompts: your choice.** The Claude app can ask before every tool call, or you choose "Always allow" per tool. Kairos is built so that running it fully autonomously is a reasonable choice:
 
 - **Fully autonomous** ("Always allow" for every Kairos tool): Claude reads, creates and changes without asking you each time. The safety nets above stay in place: Kairos still previews every change or delete in the chat first, Mail can never send or delete, and every change is logged and can be undone with "undo that". The remaining risk is text written by someone else (an email, an invitation) talking Claude into a change you did not want; you would see it in the activity log and undo it.
-- **Middle ground:** "Always allow" for the reading and creating tools, and keep the prompt only for tools that change, complete or delete existing things (`*_update`, `*_delete`, `reminders_complete`, `notes_replace`, `kairos_undo`). Those are rare, so the prompt seldom appears.
+- **Middle ground:** "Always allow" for the reading and creating tools, and keep the prompt only for tools that change, complete or delete existing things (`*_update`, `*_delete`, `reminders_complete`, `notes_replace`, `notes_trash`, `kairos_undo`). Those are rare, so the prompt seldom appears.
 
 macOS and the Shortcuts app ask their own questions once (see "Permission prompts"); those are separate from Claude's approvals.
 

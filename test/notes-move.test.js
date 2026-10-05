@@ -127,3 +127,71 @@ test("a folder created moments ago is found: an unknown name reads the folder li
   assert.equal(fx.calls.osascript.filter((c) => c.name === "notes.folders").length, 2, "read again once");
   assert.match((await call("notes_list", { folder: "Nowhere" })).error, /No Notes folder "Nowhere"/);
 });
+
+test("trash: one step to Recently Deleted, logged, and undo puts the note back in its folder", async () => {
+  const fx = {
+    osascript: {
+      "notes.folders": [{ output: FOLDERS }],
+      "notes.get": [
+        { match: { id: N(40) }, once: true, output: note(F(5)) }, // checks
+        { match: { id: N(40) }, once: true, output: note(F(5)) }, // settle
+        { match: { id: N(40) }, output: note(F(1)) }, // in Recently Deleted from then on
+      ],
+      "notes.trash": [{ output: { ok: true } }],
+      "notes.move": [{ output: { ok: true } }],
+    },
+  };
+  setFakeFixtures(fx);
+  const call = server();
+  const r = await call("notes_trash", { id: N(40) });
+  assert.equal(r.trashed, true, r.error);
+  assert.equal(r.recoverable_days, 30);
+  assert.equal(r.from, "iCloud/Dictations");
+  assert.equal(r.confirmation, undefined, "one step");
+  assert.match(r.activity_id, /^act-/);
+  const p = await call("kairos_undo", { id: r.activity_id });
+  assert.match(p.preview, /Restore the note .* from Recently Deleted to iCloud\/Dictations/);
+  await call("kairos_undo", { id: r.activity_id, confirmation: p.confirmation });
+  assert.deepEqual(fx.calls.osascript.filter((c) => c.name === "notes.move").map((c) => c.input), [{ id: N(40), folder: F(5) }]);
+});
+
+test("trash: locked and shared notes are refused, a note already deleted is left alone and not logged", async () => {
+  const fx = {
+    osascript: {
+      "notes.folders": [{ output: FOLDERS }],
+      "notes.get": [
+        { match: { id: N(41) }, output: note(F(5), { id: N(41), locked: true }) },
+        { match: { id: N(42) }, output: note(F(7), { id: N(42) }) },
+        { match: { id: N(43) }, output: note(F(1), { id: N(43) }) },
+      ],
+      "notes.trash": [{ output: { ok: true } }],
+    },
+  };
+  setFakeFixtures(fx);
+  const call = server();
+  assert.match((await call("notes_trash", { id: N(41) })).error, /locked/);
+  assert.match((await call("notes_trash", { id: N(42) })).error, /shared with other people.*allow_shared: true/s);
+  const again = await call("notes_trash", { id: N(43) });
+  assert.equal(again.trashed, false);
+  assert.equal(again.activity_id, undefined);
+  assert.equal(fx.calls.osascript.filter((c) => c.name === "notes.trash").length, 0, "nothing deleted");
+});
+
+test("undo of a trash is refused once the note left Recently Deleted", async () => {
+  const fx = {
+    osascript: {
+      "notes.folders": [{ output: FOLDERS }],
+      "notes.get": [
+        { match: { id: N(40) }, once: true, output: note(F(5)) },
+        { match: { id: N(40) }, once: true, output: note(F(5)) },
+        { match: { id: N(40) }, once: true, output: note(F(1)) },
+        { match: { id: N(40) }, output: note(F(2)) }, // the user restored it to Notes
+      ],
+      "notes.trash": [{ output: { ok: true } }],
+    },
+  };
+  setFakeFixtures(fx);
+  const call = server();
+  const r = await call("notes_trash", { id: N(40) });
+  assert.match((await call("kairos_undo", { id: r.activity_id })).error, /no longer in Recently Deleted/);
+});
