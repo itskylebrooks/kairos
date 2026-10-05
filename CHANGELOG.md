@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+**Docs**
+- The dictation routine in the README also carries out spoken commands: a dictation that starts with "Claude" is done with Kairos' tools at the next run; any other dictation is never treated as a command.
+
 ## 0.15.0 (2026-10-05)
 
 **A limit on removals**

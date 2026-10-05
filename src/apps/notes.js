@@ -181,7 +181,7 @@ async function resolveFolder(arg, fresh = false) {
   if (!hits.length) hits = folders.filter((f) => f.path.toLowerCase().split("/").slice(1).join("/") === lc);
   if (!hits.length && !s.includes("/")) hits = folders.filter((f) => f.name.toLowerCase() === lc);
   // Forgiving: emoji, their invisible variation selectors and extra spaces do not count, so
-  // "Dictations" or "🎙 Dictations" find "🎙️ Dictations". Used only when nothing matched exactly.
+  // "Reading" or "📚 Reading" find "📚️ Reading". Used only when nothing matched exactly.
   if (!hits.length) {
     const key = loose(s);
     hits = folders.filter((f) => [f.path, f.path.split("/").slice(1).join("/"), ...(s.includes("/") ? [] : [f.name])].some((x) => loose(x) === key));
@@ -768,7 +768,7 @@ async function notesReplace(a = /** @type {any} */ ({})) {
 
 /* ================= tool definitions ================= */
 
-const FOLDER = { type: "string", description: "Folder id, path like \"iCloud/Work/Projects\", or a folder name that is unique. Emoji in folder names may be left out (\"Dictations\" finds \"🎙️ Dictations\") when that is unique." };
+const FOLDER = { type: "string", description: "Folder id, path like \"iCloud/Work/Projects\", or a folder name that is unique. Emoji in folder names may be left out (\"Reading\" finds \"📚 Reading\") when that is unique." };
 const DATE = { type: "string", description: "Date or date-time, e.g. 2030-01-31 or 2030-01-31T18:00 (local time)." };
 const ALLOW_SHARED = { type: "boolean", description: "Set only after the user agreed in the chat: writing into a shared folder or note lets other people read it." };
 const NOTE_ID = { type: "string", description: "Note id (x-coredata://.../ICNote/p123) from notes_list or notes_search." };
