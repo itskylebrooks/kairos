@@ -34,6 +34,19 @@ test("the append guard compares the match count, as text, with 1", () => {
   assert.equal(ifs[0].WFWorkflowActionParameters.WFCondition, 4);
 });
 
+test("the read shortcut reads a Body only inside its If matches is 1 guard (no note at all would wait for a person)", () => {
+  const open = [];
+  let bodies = 0;
+  for (const a of actionsOf(SHORTCUT_READ)) {
+    const p = a.WFWorkflowActionParameters;
+    if (a.WFWorkflowActionIdentifier === "is.workflow.actions.conditional") {
+      if (p.WFControlFlowMode === 0) { assert.equal(p.WFConditionalActionString, "1"); open.push(p.GroupingIdentifier); } else open.pop();
+    }
+    if (JSON.stringify(p).includes('"PropertyName":"Body"')) { bodies++; assert.ok(open.length, "Body read outside the guard"); }
+  }
+  assert.equal(bodies, 1);
+});
+
 test("the read shortcut never writes", () => {
   for (const a of actionsOf(SHORTCUT_READ)) assert.ok(!WRITES.has(a.WFWorkflowActionIdentifier) && !/CreateNote/.test(a.WFWorkflowActionIdentifier));
 });

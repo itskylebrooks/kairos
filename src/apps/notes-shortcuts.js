@@ -104,16 +104,22 @@ function buildAppend() {
  * Read a note's body as Notes renders it for App Intents, which is the only place
  * checklist state is visible: list lines are "\t<marker>\t<text>" with ◦ open, ✓ done,
  * ⁃ dashed, • bulleted, "1." numbered. Reads only; never writes.
+ * The body is read only inside "If matches is 1": reading the Body of no note at all makes
+ * Shortcuts wait for a person (verified on macOS 27), so a missing title must never get there.
  * in:  {"name": "..."}
- * out: "matches: N\n<body>"  (body is meaningful only when N is 1)
+ * out: "matches: N\n<body>"  (body only when N is 1)
  */
 function buildRead() {
-  const kn = uuid(), fn = uuid(), c = uuid();
+  const kn = uuid(), fn = uuid(), c = uuid(), tc = uuid(), g = uuid(), tb = uuid(), end = uuid();
   return workflow([
     getValueForKey(kn, "name"),
     findNotesByName(fn, text(ref(kn, DV)), 2),
     count(c, ref(fn, "Note")),
-    getText(uuid(), text("matches: ", ref(c, "Count"), "\n", ref(fn, "Note", "Body"))),
+    getText(tc, text(ref(c, "Count"))),
+    ifIs(g, "1", ref(tc, "Text")),
+    getText(tb, text(ref(fn, "Note", "Body"))),
+    endIf(g, end),
+    getText(uuid(), text("matches: ", ref(c, "Count"), "\n", ref(end, "If Result"))),
   ]);
 }
 

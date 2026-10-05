@@ -115,6 +115,7 @@ Out of scope: Messages (needs Full Disk Access), Safari history, Maps.
   - Append to an existing note: JXA resolves the id and checks the name is unique, then a shortcut appends only inside `If matches is 1`.
   - A Shortcuts parameter that ends up empty opens a window asking a person to pick a note or type text, and the write lands wherever they choose. Every write shortcut must guard against 0 and 2+ matches inside the shortcut.
   - Notes write permission belongs to each Kairos shortcut, not to the private Node binary. Document this for users.
+- Reading the `Body` of no note at all makes Shortcuts wait for a person (verified on macOS 27, 2026-10-05: a read with a missing title hung). The read shortcut therefore reads `Body` only inside `If matches is 1`, like the write guards.
 - Checklist state is invisible to JXA; the Shortcuts `Body` rendering shows it (`◦` open, `✓` done). `notes_read` merges it into the Markdown by position, and says "unknown" rather than guessing when the lists do not line up.
 - Replace: JXA empties the body and sets `name` (an empty note keeps that name, so Shortcuts can still find it), then the guarded append writes `# Title` plus the body. Writing the title as HTML through JXA gives fake bold text, not the Title style.
 - After a rename, Shortcuts' index needs a few seconds to find the new title: poll the read shortcut before writing.

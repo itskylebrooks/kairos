@@ -109,9 +109,10 @@ export const ifIs = (group, value, variable) => ({
   },
 });
 
-export const endIf = (group) => ({
+/** End If. Its output ("If Result") is the last output of the branch that ran, or nothing. */
+export const endIf = (group, id = uuid()) => ({
   WFWorkflowActionIdentifier: "is.workflow.actions.conditional",
-  WFWorkflowActionParameters: { UUID: uuid(), GroupingIdentifier: group, WFControlFlowMode: 2 },
+  WFWorkflowActionParameters: { UUID: id, GroupingIdentifier: group, WFControlFlowMode: 2 },
 });
 
 /** A whole workflow taking text (our JSON) as input and returning text. */

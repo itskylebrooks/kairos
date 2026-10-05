@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+**Fixes**
+- **Notes:** the "Kairos Notes Read" shortcut waited for a person (a Shortcuts window) when no note matched the title, which could happen while `notes_replace` waited for a renamed note. It now reads a note only when exactly one matches. To update: delete "Kairos Notes Read" in the Shortcuts app, then run `./install.sh` and click Add Shortcut.
+
 ## 0.9.2 (2026-10-04)
 
 **Large results come in parts**
