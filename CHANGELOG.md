@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.14.0 (2026-10-05)
 
 **Mail housekeeping**
 - New tools `mail_trash`, `mail_archive` and `mail_mark`: move 1 to 10 messages, by id, to their account's own Trash or Archive, or mark them read or unread. Never a permanent delete: nothing empties the Trash, and no Mail script can delete a message (a test checks this). Every call is logged; `kairos_undo` moves the messages back or sets their read state back. They follow the previews setting: a preview first when it is on, at once when it is off.
