@@ -6,7 +6,7 @@ Kairos is a local MCP server that gives the Claude desktop app access to your Ap
 
 The point is care: Kairos reads by default, writes only where you allow it and only where it is safe, asks for your yes before it changes or deletes anything, keeps a log of every change it made so you can undo it, and handles the details other Apple MCP servers get wrong, such as all day events, reminders without a time, accents, deleted notes and repeating events.
 
-> Version 0.16.0, tested on macOS 27 (Apple silicon). Version 1.0 follows once Kairos has its own EventKit helper (see the [roadmap](docs/ROADMAP.md)).
+> Version 1.0.0, tested on macOS 27 (Apple silicon). See [Known limits](#known-limits-of-10) for what 1.0 does not do yet.
 
 ## What you can ask Claude
 
@@ -264,6 +264,17 @@ cd ~/kairos && git pull && ./install.sh
 2. Remove the `kairos` entry from `~/Library/Application Support/Claude/claude_desktop_config.json` while Claude is quit.
 3. Delete the three **Kairos: …** shortcuts (Create Note, Append to Note, Read Note) in the Shortcuts app.
 4. Delete this folder, and `~/Library/Application Support/Kairos/` if you do not want to keep backups, the activity log and play history.
+
+## Known limits of 1.0
+
+- **Tested on macOS 27 (Apple silicon), on one Mac so far.** Other macOS versions may differ, above all in Notes formatting and permission prompts; the health check shows what is missing.
+- **Calendar and Reminders go through a third party helper** (`event` from FradSer's mcp-server-apple-events 1.5.0), downloaded by the installer and pinned by checksum. Through it, Kairos cannot change or delete repeating events, clear a field, set reminder flags, or address calendars other than by a unique name. The helper also contains a cloud sync command that Kairos never calls. Kairos' own helper is the next big step after 1.0.
+- **Invitations from other people** in your own calendars, and reminder lists shared with you, are not yet marked as text from others.
+- **Apple Journal** has no interface on the Mac in macOS 27; journal entries go through your iPhone (see the dictation recipe).
+- **Notes:** single checklist items cannot be ticked, and replacing a note's text is refused for notes with attachments or for shared notes.
+- **Mail:** message bodies are not searched, and Mail must be open.
+- **Music:** read only.
+- **Only in the Claude app on your Mac** (see "Claude on your iPhone").
 
 ## Roadmap
 

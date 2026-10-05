@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**Version 1.0**
+- The core is complete and stable for daily use: Calendar, Reminders, Contacts, Notes, Mail and Music on your Mac, safe writes with previews (or without, if you choose), a log of every change with undo, never a permanent delete, a removal limit enforced by Kairos, the health check, `kairos_help`, and the dictation inbox recipe.
+- From 1.0 on, tool names and settings stay stable; changes that break them will be announced as such.
+- Known limits are listed in the README ("Known limits of 1.0"); the biggest, the third party Calendar and Reminders helper, is the next step.
+
 **Docs**
 - README: "Claude on your iPhone": Kairos works only in the Claude app on the Mac; a chat continued on the iPhone cannot use it. A ready-made line for Claude's personal preferences makes Claude aware of that on every device. Kairos' instructions and `kairos_help` say the same.
 

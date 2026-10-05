@@ -116,7 +116,7 @@ Out of scope: Messages (needs Full Disk Access), Safari history, Maps.
 - Setting the flag needs a third party shortcut ("AdvancedReminderEdit"); the helper then prints a notice before its JSON but has already written. Kairos never sets flags, and parses JSON after any notice.
 - Without permission the helper returns empty lists instead of an error. Zero reminder lists is reported as a permission problem.
 - FradSer's own MCP tools are buggy (single day reads empty, read by id fails, overdue filter empty). Don't copy their logic.
-- The binary also contains a Cloudflare D1 `sync` subcommand. Never call it (the runner only allows `calendar` and `reminders`). Before going public, replace the helper with our own small Swift EventKit binary, which should also handle occurrences, clearing fields and flags.
+- The binary also contains a Cloudflare D1 `sync` subcommand. Never call it (the runner only allows `calendar` and `reminders`). 1.0 ships with it (its limits are in the README's "Known limits of 1.0"); the next big step is our own small Swift EventKit binary, which should also handle occurrences, clearing fields and flags.
 
 **Contacts.** One Apple Events round trip per property (bulk fetch), quit Contacts afterwards if it wasn't running, 5 minute cache. Birth year 1604 means "year unknown". Search matches every word, accents ignored; 29 February birthdays fall on 28 February in other years.
 
@@ -190,8 +190,8 @@ The installer is generic: it knows nothing about the author's old `apple-mcp` se
    - 0.14: Mail housekeeping (`mail_trash`, `mail_archive`, `mail_mark`; never a permanent delete; follows `KAIROS_CONFIRM`). Done.
    - 0.15: removal limit, 20 items per hour, server enforced, fixed in code. Done.
    - 0.16: `kairos_help`, an overview of what Kairos can do in this setup. Done.
-   - 0.17: day view across all apps, free time finder.
-   - 1.0: own Swift EventKit helper.
+   - 1.0: released 2026-10-05: core complete and stable for daily use, known limits listed in the README. Done.
+   - After 1.0: own Swift EventKit helper (the next big step), day view and free time finder.
 7. Later: permissions per AI app (only ever narrowing; client names are self declared), Notes image attachments from files on the Mac (images only, user named files), Music additive writes, importing the privacy.apple.com export into the play log.
 
 `docs/ROADMAP.md` is the public version of this list, with the known limits each step removes. Update it with every change of plan or scope.
