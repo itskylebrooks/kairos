@@ -27,7 +27,7 @@ export const DELETE = Object.freeze({ readOnlyHint: false, destructiveHint: true
  * @property {object} inputSchema
  * @property {Annotations} annotations
  * @property {(args: any, ctx?: { config: Config }) => Promise<any> | any} handler
- * @property {boolean} [removes]  removes items (to Recently Deleted or the Trash, or deletes events and reminders): counted against KAIROS_MAX_REMOVALS
+ * @property {boolean} [removes]  removes items (to Recently Deleted or the Trash, or deletes events and reminders): counted against the removal limit (MAX_REMOVALS_PER_HOUR)
  * @property {(args: any, ctx?: { config: Config }) => Promise<{ summary: string }>} [preview]  makes the tool two step (see lib/safety.js)
  */
 

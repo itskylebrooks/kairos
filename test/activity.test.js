@@ -129,7 +129,7 @@ test("with previews off, undo runs in one step too", async () => {
   assert.ok(fx.calls.eventkit.some((a) => a[1] === "delete"), "deleted at once, no preview");
 });
 
-test("removal limit: at most KAIROS_MAX_REMOVALS items per hour, counted from the log, enforced by the server", async () => {
+test("removal limit: at most 20 items per hour (3 here), counted from the log, enforced by the server", async () => {
   const { DELETE, defineTool } = await import("../src/lib/tools.js");
   const removed = [];
   const drop = defineTool({
@@ -138,16 +138,16 @@ test("removal limit: at most KAIROS_MAX_REMOVALS items per hour, counted from th
     preview: async () => ({ summary: "Drop." }),
     handler: async ({ id, ids }) => { const list = ids ?? [id]; removed.push(...list); return { dropped: list.length, _journal: { action: "trash", target: { kind: "note", id: id ?? null }, summary: "Dropped.", before: ids ? list.map((x) => ({ id: x })) : { id }, undo: { possible: false, reason: "test" } } }; },
   });
-  const make = (env = {}) => {
-    const s = createServer({ tools: [drop], config: readConfig({ KAIROS_APPS: "notes", KAIROS_WRITE: "notes", KAIROS_CONFIRM: "off", ...env }) });
+  const make = () => {
+    const s = createServer({ tools: [drop], config: readConfig({ KAIROS_APPS: "notes", KAIROS_WRITE: "notes", KAIROS_CONFIRM: "off" }), maxRemovals: 3 });
     return async (args) => { const r = (await s.handle({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "notes_drop", arguments: args } })).result; return r.isError ? { error: r.content[0].text } : r.structuredContent; };
   };
-  const call = make({ KAIROS_MAX_REMOVALS: "3" });
+  const call = make();
   for (const id of ["N1", "N2", "N3"]) assert.equal((await call({ id })).dropped, 1);
   const refused = await call({ id: "N4" });
-  assert.match(refused.error, /Removal limit reached: Kairos removed 3 items in the last hour and allows 3 per hour .* Nothing was removed/);
+  assert.match(refused.error, /Removal limit reached: Kairos removed 3 items in the last hour and allows 3 per hour\. Nothing was removed/);
   assert.deepEqual(removed, ["N1", "N2", "N3"], "the fourth never ran");
-  assert.match((await make({ KAIROS_MAX_REMOVALS: "3" })({ id: "N5" })).error, /limit reached/, "a new server (restart, new chat) does not reset the count");
+  assert.match((await make()({ id: "N5" })).error, /limit reached/, "a new server (restart, new chat) does not reset the count");
 
   // Older than an hour no longer counts; a batch counts each item and must fit as a whole.
   rmSync(activityDir(), { recursive: true, force: true });
@@ -157,10 +157,9 @@ test("removal limit: at most KAIROS_MAX_REMOVALS items per hour, counted from th
   assert.match((await call({ ids: ["A", "B", "C"] })).error, /removed 1 item in the last hour/, "1 + 3 would be over 3");
   assert.equal((await call({ ids: ["A", "B"] })).dropped, 2);
 
-  const r = readConfig({ KAIROS_MAX_REMOVALS: "lots" });
-  assert.equal(r.maxRemovals, 20);
-  assert.match(r.warnings.join(), /KAIROS_MAX_REMOVALS/);
-  assert.equal(readConfig({}).maxRemovals, 20, "default 20");
+  const { MAX_REMOVALS_PER_HOUR } = await import("../src/lib/config.js");
+  assert.equal(MAX_REMOVALS_PER_HOUR, 20, "fixed at 20, not a setting");
+  assert.equal(readConfig({ KAIROS_MAX_REMOVALS: "500" }).maxRemovals, undefined, "no setting can raise it");
 });
 
 test("only removals count: creating, moving and marking are never limited", async () => {
@@ -170,7 +169,7 @@ test("only removals count: creating, moving and marking are never limited", asyn
     inputSchema: { type: "object", properties: { id: { type: "string" } } },
     handler: async ({ id }) => ({ shifted: id, _journal: { action: "move", target: { kind: "note", id }, summary: "Moved.", undo: { possible: false, reason: "test" } } }),
   });
-  const s = createServer({ tools: [move], config: readConfig({ KAIROS_APPS: "notes", KAIROS_WRITE: "notes", KAIROS_MAX_REMOVALS: "1" }) });
+  const s = createServer({ tools: [move], config: readConfig({ KAIROS_APPS: "notes", KAIROS_WRITE: "notes" }), maxRemovals: 1 });
   for (let i = 0; i < 5; i++) {
     const r = (await s.handle({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "notes_shift", arguments: { id: `N${i}` } } })).result;
     assert.equal(r.isError, undefined);

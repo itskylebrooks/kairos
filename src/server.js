@@ -9,7 +9,7 @@ import { readConfig } from "./lib/config.js";
 import { UserError } from "./lib/errors.js";
 import { sealScripts } from "./lib/osascript.js";
 import { record, recentRemovals } from "./lib/activity.js";
-import { REMOVALS } from "./lib/config.js";
+import { MAX_REMOVALS_PER_HOUR } from "./lib/config.js";
 import { fitResult } from "./lib/paging.js";
 import { DEFAULT_RESULT_CHARS, PREVIEW_NOTE, issueToken, limitResult, markUntrusted, redeemToken } from "./lib/safety.js";
 import { describeTool, selectTools, validateArgs } from "./lib/tools.js";
@@ -51,17 +51,16 @@ const log = (...a) => console.error(`[${NAME}]`, ...a);
 const isPlainObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
 /**
- * @param {{ tools?: readonly import("./lib/tools.js").Tool[], config?: import("./lib/config.js").Config }} [opts]
+ * @param {{ tools?: readonly import("./lib/tools.js").Tool[], config?: import("./lib/config.js").Config, maxRemovals?: number }} [opts]  maxRemovals: for tests only
  */
-export function createServer({ tools = ALL_TOOLS, config = readConfig() } = {}) {
+export function createServer({ tools = ALL_TOOLS, config = readConfig(), maxRemovals = MAX_REMOVALS_PER_HOUR } = {}) {
   const active = selectTools(tools, config);
   const byName = new Map(active.map((t) => [t.name, t]));
   const confirm = config.confirm !== false; // KAIROS_CONFIRM=off: no preview step
-  const maxRemovals = config.maxRemovals ?? REMOVALS.default;
   const removers = new Set(active.filter((t) => t.removes).map((t) => t.name));
 
   /**
-   * The removal limit, enforced here and not left to Claude: at most maxRemovals items removed
+   * The removal limit, enforced here and not left to Claude: at most 20 items removed
    * per hour, counted from the activity log (so a restart or a new chat does not reset it).
    * A call that would go over is refused before anything runs.
    */
@@ -72,7 +71,7 @@ export function createServer({ tools = ALL_TOOLS, config = readConfig() } = {}) 
     try { r = recentRemovals(removers); } catch { throw new UserError("Kairos could not read its activity log to check the removal limit, so nothing was removed."); }
     if (r.count + n > maxRemovals) {
       const free = r.oldest ? new Date(r.oldest + 3600e3).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : null;
-      throw new UserError(`Removal limit reached: Kairos removed ${r.count} item${r.count === 1 ? "" : "s"} in the last hour and allows ${maxRemovals} per hour (KAIROS_MAX_REMOVALS). Nothing was removed. ${free ? `Try again after ${free}` : "Try again later"}, or ask the user; do not try to get around the limit.`);
+      throw new UserError(`Removal limit reached: Kairos removed ${r.count} item${r.count === 1 ? "" : "s"} in the last hour and allows ${maxRemovals} per hour. Nothing was removed. ${free ? `Try again after ${free}` : "Try again later"}, or ask the user; do not try to get around the limit.`);
     }
   }
   const listed = active.map((t) => describeTool(t, { confirm }));
