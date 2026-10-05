@@ -43,7 +43,7 @@ Only governs what Kairos' tools do for Claude; nothing here changes macOS or oth
 - Known gaps (until our own EventKit helper): invitations from others in the user's own calendars and shared reminder lists are not marked `from_others`. Confirmation is enforced by Kairos as a second step, but whether the user said yes is up to Claude; the README advises keeping the Claude app's approval prompt for write tools.
 - Activity log (`src/lib/activity.js`, tools in `src/apps/kairos.js`, pseudo app `kairos`): the server records every successful write (never previews) from the tool's private `_journal` (action, target, summary, machine readable before and after, whether and why undo is possible) into `~/Library/Application Support/Kairos/activity/activity-YYYY-MM.jsonl` (0700/0600, whole months older than 90 days pruned), and returns `activity_id`. Result fields starting with `_` never leave the server. Apps register undo handlers per app and action; `kairos_undo` is two step, needs write permission for the item's app, refuses when the item changed since Kairos' change, and when a later change to the same item is not undone yet. Undo entries are logged and cannot themselves be undone. Notes append now keeps a backup like replace, so it can be undone.
 - Tests run with `--import ./test/setup.js`, which points every Kairos data, log and agent folder at a temp directory: no test may touch real files.
-- Programs: `run()` / `runSync()` start only `/usr/bin/osascript`, `/usr/bin/shortcuts`, `/bin/launchctl` and the two EventKit helper binaries, never through a shell. The list is private to `run.js`.
+- Programs: `run()` / `runSync()` start only `/usr/bin/osascript`, `/usr/bin/shortcuts`, `/bin/launchctl` and the two EventKit helper binaries, never through a shell. The list is private to `run.js`. One exception outside the server: `src/cli/health.js` restarts itself (its own Node and script, nothing else) through `event-disclaim`, see "Health check".
 
 ## Architecture
 
@@ -65,6 +65,14 @@ Only governs what Kairos' tools do for Claude; nothing here changes macOS or oth
 - Tests use `node:test` (`npm test`). Fake osascript and fake EventKit modes are driven by fixtures in `test/fixtures/`, so the suite never touches real data.
 - `npm run typecheck` checks the JSDoc types with `tsc` (dev dependencies only, pinned exact; never a runtime dependency). CI (`.github/workflows/ci.yml`) runs tests and the type check on every push.
 - Versions: `package.json`, `package-lock.json` and `VERSION` in `src/server.js` stay equal (a test checks package.json against VERSION). Record each release in `CHANGELOG.md`.
+
+### Health check (`src/lib/health.js`, tool `kairos_health`, terminal `src/cli/health.js`)
+
+- Only looks, changes nothing; the report holds counts and states, never personal data. Each check: `app`, `check`, `status` (ok, problem, warning, skipped), `detail`, and a `fix` in plain words for anything not ok.
+- Checks: macOS version, private Node (and whether Kairos runs on it), settings and config warnings, privacy of Kairos' folders, EventKit helper hashes (pins read from `install.sh`, the one place they are written), Automation per app (one `version()` Apple Event), Calendars (events in the past year) and Reminders (lists) for the helper, the three Notes shortcuts installed once each, the shortcuts' Notes access, the Music play log job. The terminal version also checks Claude's config entry.
+- Notes, Contacts and Calendar may be opened and are quit again if the check opened them; Mail and Music are never opened (skipped when closed). A permission macOS has not asked about yet shows its prompt during the check: that prompt is the fix. A silent check (`AEDeterminePermissionToAutomateTarget`) cannot be called from JXA; it belongs in our own compiled helper later.
+- The shortcut probe reads a note whose title exists exactly once (unlocked, outside Recently Deleted), never a missing title: older read shortcuts wait for a person when nothing matches.
+- macOS attributes permissions to the "responsible" app. Claude starts MCP servers through its own `disclaimer` helper, so `node-kairos` is responsible for itself; started from Terminal it would be Terminal. The terminal command therefore restarts itself through `event-disclaim` (skipped in fake mode or when `KAIROS_DISCLAIMED` is set), so it checks exactly what Kairos sees under Claude.
 
 ### Instructions string for the model
 
@@ -146,7 +154,7 @@ Out of scope: Messages (needs Full Disk Access), Safari history, Maps.
 
 ## Installer
 
-`install.sh`: private Node binary (`runtime/node-kairos`) with checksum check, the pinned EventKit helper, the opt in Music play log agent (`--music-log on|off`), the Kairos shortcuts (built and signed by `scripts/build-shortcuts.js`, one "Add Shortcut" click each, duplicates refused), a working self test, backup of the Claude config, one `kairos` entry with `KAIROS_APPS` and `KAIROS_WRITE` (other env settings in that entry, such as `KAIROS_MAX_RESULT_CHARS`, are kept). Writing is asked per app; earlier answers are kept and only apps new since the last install are asked (`--write notes,calendar` or `all`/`none` skips the questions). `--dry-run` and `--config` allow testing without touching the real config. After updating, Claude must be quit (Cmd+Q) and reopened; the installer says so.
+`install.sh`: private Node binary (`runtime/node-kairos`) with checksum check, the pinned EventKit helper, the opt in Music play log agent (`--music-log on|off`), the Kairos shortcuts (built and signed by `scripts/build-shortcuts.js`, one "Add Shortcut" click each, duplicates refused), a working self test, backup of the Claude config, the health check as the last step (skipped in `--dry-run`), one `kairos` entry with `KAIROS_APPS` and `KAIROS_WRITE` (other env settings in that entry, such as `KAIROS_MAX_RESULT_CHARS`, are kept). Writing is asked per app; earlier answers are kept and only apps new since the last install are asked (`--write notes,calendar` or `all`/`none` skips the questions). `--dry-run` and `--config` allow testing without touching the real config. After updating, Claude must be quit (Cmd+Q) and reopened; the installer says so.
 - Updating a shortcut: delete it in the Shortcuts app, then rerun the installer (importing over an existing name creates a duplicate).
 
 The installer is generic: it knows nothing about the author's old `apple-mcp` setup, which was retired on 2026-10-04 (both config entries removed, the folder moved to the Trash).
@@ -160,7 +168,7 @@ The installer is generic: it knows nothing about the author's old `apple-mcp` se
 4. Mail. Done.
 5. Release prep: MIT license, README polish, CHANGELOG, SECURITY.md, type check and CI, version 0.9.0. Done (permission prompt screenshots skipped).
 6. Next, as small releases (details and sizes in `docs/ROADMAP.md`):
-   - 0.10: health check (missing permissions and how to fix them).
+   - 0.10: health check (missing permissions and how to fix them). Done.
    - Open questions first (short spikes): Spokenly folder per mode, Apple Journal "Create Entry" without a window and with a date, signing and delivery of our own EventKit helper, Notes image attachment.
    - 0.11: notes move tool and allowlisted shortcut runner, then journal from dictations with Spokenly routing.
    - 0.12: day view across all apps, free time finder.

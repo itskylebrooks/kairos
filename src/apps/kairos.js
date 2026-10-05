@@ -1,10 +1,11 @@
-// Kairos' own tools: the activity log of every change Kairos made, and undo.
+// Kairos' own tools: the activity log of every change Kairos made, undo, and the health check.
 // The log is written centrally by the server (see lib/activity.js); apps register how to
 // undo their changes. Undo is itself a change: it goes through preview and confirmation,
 // is refused when the item was changed since, and is logged too.
 import { findEntry, undoerFor, withUndoState } from "../lib/activity.js";
 import { addDays, isBareDay, isoLocal, parseArgDate, startOfDay } from "../lib/dates.js";
 import { UserError } from "../lib/errors.js";
+import { checkHealth } from "../lib/health.js";
 import { clampInt } from "../lib/paging.js";
 import { CORE_APP, DELETE, READ, defineTool } from "../lib/tools.js";
 
@@ -78,6 +79,16 @@ async function kairosUndo({ id } = /** @type {any} */ ({}), ctx) {
   };
 }
 
+const HEALTH_APPS = ["calendar", "reminders", "contacts", "notes", "mail", "music"];
+
+async function kairosHealth({ apps } = /** @type {any} */ ({}), ctx) {
+  if (apps !== undefined) {
+    const bad = (Array.isArray(apps) ? apps : [apps]).filter((a) => !HEALTH_APPS.includes(a));
+    if (!Array.isArray(apps) || bad.length) throw new UserError(`apps must be a list of: ${HEALTH_APPS.join(", ")}.`);
+  }
+  return checkHealth({ config: ctx.config, apps });
+}
+
 export const tools = [
   defineTool({
     name: "kairos_activity", app: CORE_APP, title: "What Kairos changed", annotations: READ, handler: kairosActivity,
@@ -96,5 +107,10 @@ export const tools = [
     name: "kairos_undo", app: CORE_APP, title: "Undo a change", annotations: DELETE, handler: kairosUndo, preview: previewUndo,
     description: "Undo one change from kairos_activity by its id. Refused when the item was changed after Kairos' change (undo never overwrites later edits), and for changes that cannot be undone (see why_not). Two steps: the first call only returns a preview and a confirmation; show the preview, wait for the user's yes, then call again with the same id plus confirmation.",
     inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: { type: "string", description: "Change id from kairos_activity (act-...)." } } },
+  }),
+  defineTool({
+    name: "kairos_health", app: CORE_APP, title: "Check Kairos' setup", annotations: READ, handler: kairosHealth,
+    description: "Checks whether Kairos has everything it needs, and says how to fix what is missing: macOS permissions for each enabled app (Automation, Calendars, Reminders), Kairos' Notes shortcuts, its private Node and EventKit helper, settings, and the Music play log. Use it when a tool fails with a permission or setup error, or when the user asks whether Kairos is set up correctly. Only looks, changes nothing: Notes, Contacts and Calendar may open briefly and close again, Mail and Music are never opened. If macOS has not asked about a permission yet, its prompt appears now; tell the user to allow it. Show each problem with its fix in plain words.",
+    inputSchema: { type: "object", additionalProperties: false, properties: { apps: { type: "array", items: { type: "string", enum: HEALTH_APPS }, description: "Only check these apps (default: all enabled)." } } },
   }),
 ];

@@ -12,17 +12,11 @@ What is done, what comes next, and the known limits each step removes. Kept curr
 - **Safety core:** text from others marked and cleaned, registered scripts only, allowed programs only, consent for shared places, previews and one time confirmations for every change or delete.
 - **Activity log with undo:** a private log of every change Kairos makes, kept 90 days, with "what did Claude change" and a careful undo that never overwrites later edits.
 - **Release prep (0.9.0):** MIT license, README for people who are not developers, changelog, security policy, type checking and CI.
+- **Health check (0.10):** `kairos_health` and a terminal command say which permissions or parts are missing and how to fix each, in plain words; the installer runs it as its last step.
 
 ## Next
 
 Planned as small releases, in this order. Sizes: S (a day or two), M (about a week), L (several weeks). Each milestone lists what it needs first.
-
-### 0.10 Easy start
-
-#### Health check (S)
-One tool, and an installer step, that answers "which permissions are missing and how do I fix them" in plain words. For each enabled app it checks access (Automation for Notes, Contacts, Mail, Music and Calendar, Calendars and Reminders for the EventKit helper), whether the Kairos shortcuts are installed once each, whether Mail is running, whether the Music play log is on and recent, and which version runs. Every problem comes with the exact place in System Settings or the one command that fixes it. It only looks: it never opens Mail or Music, and it avoids checks that would trigger a permission prompt by themselves. For people who are not developers this helps more than anything else at install time.
-
-*Needs:* nothing new.
 
 ### Open questions (short experiments, about a day in total)
 

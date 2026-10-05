@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**Health check**
+- New tool `kairos_health`: ask Claude "is Kairos set up correctly?". It checks every enabled app's macOS permissions (Automation, Calendars, Reminders), Kairos' Notes shortcuts and their access to Notes, the private Node and the EventKit helper (against its pinned checksums), the settings, the privacy of Kairos' folders, and the Music play log, and gives a fix in plain words for each problem.
+- The same check in the terminal, for when Kairos does not show up in Claude: `runtime/node-kairos src/cli/health.js`. It also checks Claude's config entry, and runs exactly as Kairos does under Claude, so permissions are checked for Kairos, not for Terminal.
+- The installer runs it as its last step; macOS asks for missing permissions there.
+- It only looks: Notes, Contacts and Calendar may open briefly and close again, Mail and Music are never opened, and the report holds no personal data.
+
 **Fixes**
 - **Notes:** the "Kairos Notes Read" shortcut waited for a person (a Shortcuts window) when no note matched the title, which could happen while `notes_replace` waited for a renamed note. It now reads a note only when exactly one matches. To update: delete "Kairos Notes Read" in the Shortcuts app, then run `./install.sh` and click Add Shortcut.
 - **Music play log:** the background job skipped its hourly check when the hour fell into sleep, so after a nap the log could go hours without a check. It now runs every full hour and catches up once after the Mac wakes. Run `./install.sh` to update the job.

@@ -337,6 +337,17 @@ function realAttachments(n) {
 }
 
 
+/**
+ * For the health check: the title of one live, unlocked note no other note shares, or null.
+ * Reading it through the read shortcut tests Notes access without ever matching nothing.
+ */
+export async function uniqueNoteTitle() {
+  const { raw } = await scan({ folder: undefined, include_deleted: false, text: "none" });
+  const count = new Map();
+  for (const n of raw) count.set(n.name, (count.get(n.name) ?? 0) + 1);
+  return raw.find((n) => !n.locked && n.name.trim() && count.get(n.name) === 1)?.name ?? null;
+}
+
 /* ================= handlers ================= */
 
 async function notesFolders() {

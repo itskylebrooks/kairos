@@ -45,6 +45,17 @@ async function runOnce(name, input, { app = "Notes", timeoutMs = 90000 } = {}) {
   }
 }
 
+/**
+ * Names of all installed shortcuts (for the health check, which only counts Kairos' own).
+ * @returns {Promise<string[]>}
+ */
+export async function listShortcuts() {
+  const fx = fakeFixtures();
+  if (fx) return [...(fx.shortcuts_list || [])];
+  const out = await run(SHORTCUTS, ["list"], { timeoutMs: 30000 });
+  return out.split("\n").map((s) => s.trim()).filter(Boolean);
+}
+
 /** Turns `shortcuts run` failures into messages that say what to do. */
 export function shortcutError(name, app, msg, timeoutMs = 90000) {
   if (/took longer than/i.test(msg)) {

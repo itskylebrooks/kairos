@@ -268,9 +268,24 @@ else
   fi
 fi
 
+# 7. Health check: the same checks as the kairos_health tool, as Kairos sees them under
+#    Claude. It changes nothing; macOS asks here for any permission not yet answered.
+say "7. Health check"
+HEALTH="runtime/node-kairos src/cli/health.js"
+if [ "$DRY" = 1 ]; then
+  warn "Skipped (dry run). Run it any time: $HEALTH"
+else
+  echo "  macOS may now ask whether Kairos may control Notes, Contacts, Calendar, Mail or Music, and"
+  echo "  whether the EventKit helper (\"event\") may use Calendars and Reminders. Allow them. For the"
+  echo "  Kairos shortcuts, choose Always Allow. Mail and Music are only checked when they are open."
+  if "$PRIVATE_NODE" "$DIR/src/cli/health.js" --config "$CONFIG" | sed 's/^/  /'; then
+    ok "Everything Kairos needs is in place."
+  else
+    warn "Fix what is marked above, then check again: $HEALTH"
+  fi
+fi
+
 say "Done. Left for you:"
 echo "  1. Quit Claude completely (Cmd+Q) and open it again. Closing the window is not enough."
-echo "  2. The first time Kairos reads Notes, Contacts, Mail or Music or lists calendars, macOS asks whether it"
-echo "     may control that app, and the EventKit helper asks for Calendars and Reminders. Allow them."
-echo "  3. The first time each Kairos shortcut runs, choose Always Allow for Notes."
+echo "  2. Any time something does not work: ask Claude \"is Kairos set up correctly?\", or run $HEALTH"
 echo "  Kairos never needs Full Disk Access; leave it off."

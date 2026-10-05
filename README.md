@@ -36,7 +36,7 @@ or without git: on GitHub click **Code**, then **Download ZIP**, unzip it, and m
 cd ~/kairos && ./install.sh
 ```
 
-It downloads a private Node.js 24 and the EventKit helper (both checksum verified), builds three Kairos shortcuts for Notes and opens them (click **Add Shortcut** for each), runs a self test, asks which apps Kairos may write to and whether to keep a Music play log, backs up Claude's config and adds one `kairos` entry. Answer a question with `y` and Enter for yes, or just Enter for no.
+It downloads a private Node.js 24 and the EventKit helper (both checksum verified), builds three Kairos shortcuts for Notes and opens them (click **Add Shortcut** for each), runs a self test, asks which apps Kairos may write to and whether to keep a Music play log, backs up Claude's config and adds one `kairos` entry, and finally runs the health check (see Troubleshooting), during which macOS asks for the permissions Kairos needs. Answer a question with `y` and Enter for yes, or just Enter for no.
 
 **3. Quit Claude completely** (Cmd+Q, closing the window is not enough) and open it again.
 
@@ -52,7 +52,7 @@ Running the installer again is safe: it skips what is installed and keeps your e
 
 ### Permission prompts
 
-The first time Kairos uses an app, macOS asks once:
+The first time Kairos uses an app (usually during the installer's health check), macOS asks once:
 
 - **Notes, Contacts, Mail, Music, Calendar list:** "… wants to control …". Allow it.
 - **Calendar and Reminders events:** the EventKit helper (`event`) asks for access to Calendars and Reminders. Allow it.
@@ -70,7 +70,7 @@ If a Shortcuts window ever asks you to **pick a note or type text**, click **Can
 | Notes | `notes_folders`, `notes_list`, `notes_search`, `notes_read` | `notes_create`, `notes_append`, `notes_replace` |
 | Mail | `mail_mailboxes`, `mail_unread`, `mail_search`, `mail_read` | `mail_create_draft` (never sends) |
 | Music | `music_now`, `music_played`, `music_top`, `music_search`, `music_playlists`, `music_history_status`, `music_history_top`, `music_history_timeline` | none |
-| Kairos | `kairos_activity` | `kairos_undo` (when any app may write) |
+| Kairos | `kairos_activity`, `kairos_health` | `kairos_undo` (when any app may write) |
 
 Limits worth knowing:
 
@@ -139,6 +139,14 @@ Everything below applies only to what Kairos' tools do for Claude. Kairos change
 To report a security problem, see [SECURITY.md](SECURITY.md).
 
 ## Troubleshooting
+
+**Start with the health check.** Ask Claude "is Kairos set up correctly?", or, if Kairos does not show up in Claude at all, run this in the Kairos folder:
+
+```bash
+runtime/node-kairos src/cli/health.js
+```
+
+It checks every enabled app's permissions, Kairos' Notes shortcuts, its private Node and EventKit helper, the settings, Claude's config entry and the Music play log, and says for each problem how to fix it. It only looks and changes nothing. Notes, Contacts and Calendar may open for a moment and close again; Mail and Music are never opened, so open them first if you want them checked. If macOS has not asked about a permission yet, its prompt appears during the check: allow it.
 
 | Problem | What to do |
 |---|---|
