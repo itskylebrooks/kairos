@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.11.0 (2026-10-05)
 
 **Notes**
 - New tool `notes_move`: moves a note to another folder of the same account, by id. One step like creating, because nothing is lost: the move is logged and `kairos_undo` moves the note back (refused when it was moved again since). Refused for Recently Deleted and between accounts; shared places need agreement.

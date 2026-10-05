@@ -6,7 +6,7 @@ Kairos is a local MCP server that gives the Claude desktop app access to your Ap
 
 The point is care: Kairos reads by default, writes only where you allow it and only where it is safe, asks for your yes before it changes or deletes anything, keeps a log of every change it made so you can undo it, and handles the details other Apple MCP servers get wrong, such as all day events, reminders without a time, accents, deleted notes and repeating events.
 
-> Version 0.10.0, tested on macOS 27 (Apple silicon). Version 1.0 follows once Kairos has its own EventKit helper (see the [roadmap](docs/ROADMAP.md)).
+> Version 0.11.0, tested on macOS 27 (Apple silicon). Version 1.0 follows once Kairos has its own EventKit helper (see the [roadmap](docs/ROADMAP.md)).
 
 ## What you can ask Claude
 
