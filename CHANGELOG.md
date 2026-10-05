@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.16.0 (2026-10-05)
 
 **What can Kairos do?**
 - New tool `kairos_help`: ask Claude "what can you do with Kairos?" and it answers from an overview of your setup: per app what Kairos reads and writes, example requests, and the limits. Only apps and write permissions you switched on are listed. It loads only when asked, so it costs nothing in other chats.
