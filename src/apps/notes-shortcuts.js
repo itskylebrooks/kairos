@@ -107,7 +107,7 @@ function buildAppend() {
  * The body is read only inside "If matches is 1": reading the Body of no note at all makes
  * Shortcuts wait for a person (verified on macOS 27), so a missing title must never get there.
  * in:  {"name": "..."}
- * out: "matches: N\n<body>"  (body only when N is 1)
+ * out: "matches: N\n<body>"  (body only when N is 1; otherwise the second line is not a body)
  */
 function buildRead() {
   const kn = uuid(), fn = uuid(), c = uuid(), tc = uuid(), g = uuid(), tb = uuid(), end = uuid();
