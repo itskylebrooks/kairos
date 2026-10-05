@@ -20,8 +20,12 @@ import { fold } from "./text.js";
 export const VERSION = 1;
 /** launchd label of the opt-in background job (src/cli/music-log.js). */
 export const AGENT_LABEL = "kairos.music-log";
-/** Extra snapshots (when Music is already open) at most this often. */
-export const INTERVAL_MS = 3 * 3600e3;
+/**
+ * Extra snapshots (when Music is already open) at most this often: about hourly. Not a full
+ * hour, because the hourly check runs on the hour and a snapshot taken a moment after the
+ * last check would otherwise be "59 minutes ago" and skipped.
+ */
+export const INTERVAL_MS = 50 * 60e3;
 /** Snapshots further apart than this leave a gap in the history. */
 export const GAP_MS = 30 * 3600e3;
 

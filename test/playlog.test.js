@@ -9,11 +9,14 @@ import { coverage, decide, loadLog, makeEntry, placeEvent, readEntries, readStat
 const at = (d, h = 12, m = 0) => new Date(2030, 0, d, h, m); // local times in January 2030
 const H = 3600e3;
 
-test("decide: the first check of each day snapshots, later ones every 3 hours, never with Music closed", () => {
+test("decide: the first check of each day snapshots, later ones every hour, never with Music closed", () => {
   const last = at(10, 9).toISOString();
-  assert.deepEqual(decide({ now: at(10, 10), last, musicRunning: null }), { take: false, reason: "recent" });
-  assert.deepEqual(decide({ now: at(10, 13), last, musicRunning: null }), { take: null, reason: "check_music" });
-  assert.deepEqual(decide({ now: at(10, 13), last, musicRunning: true }), { take: true, reason: "interval" });
+  assert.deepEqual(decide({ now: at(10, 9, 45), last, musicRunning: null }), { take: false, reason: "recent" });
+  assert.deepEqual(decide({ now: at(10, 10), last, musicRunning: null }), { take: null, reason: "check_music" });
+  assert.deepEqual(decide({ now: at(10, 10), last, musicRunning: true }), { take: true, reason: "interval" });
+  // The hourly check runs on the hour: a snapshot a moment after the last one is still taken.
+  const justAfter = new Date(at(10, 9).getTime() + 400).toISOString();
+  assert.deepEqual(decide({ now: new Date(at(10, 10).getTime() + 200), last: justAfter, musicRunning: true }), { take: true, reason: "interval" });
   assert.deepEqual(decide({ now: at(11, 0, 30), last: at(10, 23).toISOString(), musicRunning: true }), { take: true, reason: "daily" });
   assert.deepEqual(decide({ now: at(11, 8), last, musicRunning: false }), { take: false, reason: "music_closed" });
   assert.deepEqual(decide({ now: at(10, 9, 5), last, musicRunning: true, force: true }), { take: true, reason: "manual" });
@@ -91,7 +94,7 @@ const lib = (counts, last = {}, extra = []) => async () => ({ running: true, tra
 test("snapshot runs: first, recent skip, Music closed, interval, next day; files private", async () => {
   assert.deepEqual(await runSnapshot({ now: at(10, 9), readLibrary: lib({ A: 5, B: 2 }) }), { action: "snapshot", reason: "first", kind: "baseline", tracks: 2, changed: 0 });
   let called = false;
-  assert.deepEqual(await runSnapshot({ now: at(10, 10), readLibrary: async () => { called = true; return { running: true, tracks: [] }; } }), { action: "skip", reason: "recent" });
+  assert.deepEqual(await runSnapshot({ now: at(10, 9, 40), readLibrary: async () => { called = true; return { running: true, tracks: [] }; } }), { action: "skip", reason: "recent" });
   assert.equal(called, false, "a recent snapshot skips without touching Music");
   assert.deepEqual(await runSnapshot({ now: at(10, 13), readLibrary: async () => ({ running: false }) }), { action: "skip", reason: "music_closed" });
   assert.equal((await runSnapshot({ now: at(10, 15), readLibrary: lib({ A: 7, B: 2 }, { A: at(10, 14) }) })).reason, "interval");

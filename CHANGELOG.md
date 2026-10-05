@@ -8,6 +8,9 @@
 - The installer runs it as its last step; macOS asks for missing permissions there.
 - It only looks: Notes, Contacts and Calendar may open briefly and close again, Mail and Music are never opened, and the report holds no personal data.
 
+**Changes**
+- **Music play log:** a snapshot every hour while Music is open (before: every 3 hours), so the history knows more closely when songs were played. Only changed play counts are stored, so the log stays small.
+
 **Fixes**
 - **Notes:** the "Kairos Notes Read" shortcut waited for a person (a Shortcuts window) when no note matched the title, which could happen while `notes_replace` waited for a renamed note. It now reads a note only when exactly one matches. To update: delete "Kairos Notes Read" in the Shortcuts app, then run `./install.sh` and click Add Shortcut.
 - **Music play log:** the background job skipped its hourly check when the hour fell into sleep, so after a nap the log could go hours without a check. It now runs every full hour and catches up once after the Mac wakes. Run `./install.sh` to update the job.

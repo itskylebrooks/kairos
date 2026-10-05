@@ -258,7 +258,7 @@ if [ "$DRY" = 1 ]; then
   warn "Would switch the play log $MUSIC_LOG (dry run)."
 elif [ "$MUSIC_LOG" = "on" ]; then
   "$PRIVATE_NODE" "$DIR/src/cli/music-log.js" agent install >/dev/null || fail "Could not install the play log background job."
-  ok "Play log on: checks hourly and at login, takes the first snapshot of each day and one every 3 hours while Music is open."
+  ok "Play log on: checks hourly and at login, takes a snapshot every hour while Music is open."
 else
   if [ -f "$AGENT_PLIST" ]; then
     "$PRIVATE_NODE" "$DIR/src/cli/music-log.js" agent remove >/dev/null || true
