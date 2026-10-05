@@ -114,15 +114,26 @@ Or build it by hand: let the shortcut receive **Text**, add a **Text** action wi
 - The first recordings make macOS ask whether "Kairos: Save Dictation" may save to a note and output text: choose **Always Allow** each time; after that it stays quiet.
 
 **4. Routine.** Set up a scheduled task in the Claude desktop app on this Mac (not a cloud routine: those cannot reach Kairos). Its prompt holds your own rules; Kairos holds none, it only provides the tools. For example, twice a day, for every note in Dictations whose title starts with "Dictation":
-- a **journal entry:** write the polished text as a new note in Dictations titled **"Journal"** plus the recording time from the original title (`notes_create`), then delete the original (`notes_trash`);
+- a **journal entry:** write the polished text as a new note in Dictations titled **"Journal"** plus the recording date and time exactly as in the original title (for example "Dictation 05/10/2026 19:56" becomes "Journal 05/10/2026 19:56"), with only the entry text in the body (`notes_create`), then delete the original (`notes_trash`);
 - a **task:** create the reminder (`reminders_create`), then delete the original;
 - a **draft:** create it as a note where it belongs (`notes_create`), then delete the original;
 - unclear: leave it and ask you.
 
 Notes titled "Journal …" are left alone: they wait for your iPhone (step 5). Creating, moving and `notes_trash` are one step each and logged, so the routine runs on its own; a deleted note stays in Recently Deleted for 30 days, "undo that" brings it back, and Spokenly's history keeps every recording anyway.
 
-**5. Journal entries, through your iPhone.** On macOS 27 the Journal app offers no Shortcuts action (its "Create Entry" action is missing in Shortcuts on the Mac, though it existed on macOS 26), has no scripting support, and its data is protected and encrypted, so Kairos cannot create Journal entries on the Mac. The iPhone can: make a personal automation in Shortcuts there (for example daily at a fixed time, set to run without asking) that finds the notes in Dictations whose name begins with "Journal", and for each creates a Journal entry with Journal's **Create Entry** action (the note's text, and the date read from its title), then deletes the note, so no entry is created twice.
-- When the action returns to Shortcuts on the Mac, Kairos can save to Journal directly; see the [roadmap](docs/ROADMAP.md).
+**5. Journal entries, through your iPhone.** On macOS 27 the Journal app offers no Shortcuts action (its "Create Entry" action is missing in Shortcuts on the Mac, though it existed on macOS 26), has no scripting support, and its data is protected and encrypted, so Kairos cannot create Journal entries on the Mac. The iPhone can, with one shortcut and one automation there.
+
+The shortcut, described in plain words for the Shortcuts app on the iPhone (or built by hand from the same steps):
+
+```
+Create a shortcut named "Kairos: Journal from Notes". Find all notes in the Notes folder "Dictations" whose name begins with "Journal". For each of these notes, one after another: take the note's name, remove the word "Journal" at the start, and get the date and time from the rest (it is written day/month/year, then hours:minutes). Take the note's body without its first line, which is the title, as the entry text. Create a new entry in the Journal app with that text and with that date as the entry date. Only if the entry was created, delete the note without asking for confirmation. Do not show any alert, notification or result. If there are no such notes, do nothing.
+```
+
+Check the result before using it: the folder must be fixed to **Dictations** (not "Ask each time"), the delete step must not ask for confirmation, and the date must come from the note's title (Journal would otherwise date every entry today). Adapt "day/month/year" if your dictation titles use another date format.
+
+The automation, in the Shortcuts app on the iPhone: **Automation**, **+**, **Time of Day** (for example daily at 21:00, after your Mac routine has run), choose **Run Immediately** and switch **Notify When Run** off, then pick the shortcut **Kairos: Journal from Notes**. Run the shortcut once by hand first: the iPhone asks whether it may use Notes and Journal and delete notes; allow it, so the automation can run on its own later.
+
+Both devices see the same notes through iCloud, so nothing else is needed. When the Journal action returns to Shortcuts on the Mac, Kairos can save to Journal directly; see the [roadmap](docs/ROADMAP.md).
 
 ## Music play log
 
