@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+**Mail housekeeping**
+- New tools `mail_trash`, `mail_archive` and `mail_mark`: move 1 to 10 messages, by id, to their account's own Trash or Archive, or mark them read or unread. Never a permanent delete: nothing empties the Trash, and no Mail script can delete a message (a test checks this). Every call is logged; `kairos_undo` moves the messages back or sets their read state back. They follow the previews setting: a preview first when it is on, at once when it is off.
+- Each account's real Trash is taken from Mail's combined Trash, so an account with both "Trash" and "Deleted Messages" is never guessed; an account without exactly one Archive mailbox is refused.
+- Moved messages get new ids, which the result lists; undo finds them by their Message-ID. Undo of a move waits until the move is a minute old, because moving straight back can leave a copy behind on IMAP servers.
+
+**Fixes**
+- **Mail:** search no longer lists the leftover copies a move leaves behind on IMAP accounts (flagged deleted, until the server cleans them up).
+
 ## 0.13.0 (2026-10-05)
 
 **Previews are now a setting**

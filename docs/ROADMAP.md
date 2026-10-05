@@ -16,6 +16,7 @@ What is done, what comes next, and the known limits each step removes. Kept curr
 - **Notes move and dictation inbox (0.11):** `notes_move` moves a note to another folder in one step, logged and undoable, so a routine can file processed notes. Dictation itself needs nothing from Kairos: Spokenly saves each recording into a Notes inbox through your own shortcut, and a Claude routine on the Mac sorts the inbox with Kairos' tools (recipe in the README).
 - **Notes trash and a one folder dictation inbox (0.12):** `notes_trash` moves a note to Recently Deleted in one step (kept 30 days, logged, undoable), so a routine can delete processed dictations. Journal dictations become "Journal …" notes that an iPhone automation turns into Journal entries (README recipe).
 - **Previews as a setting (0.13):** `KAIROS_CONFIRM=off` lets every change and delete act at once (still logged and undoable) for people who want Kairos fully autonomous; on by default.
+- **Mail housekeeping (0.14):** `mail_trash`, `mail_archive` and `mail_mark` move up to 10 messages to their account's own Trash or Archive, or mark them read or unread; logged with undo, never a permanent delete.
 
 ## Next
 
@@ -33,16 +34,6 @@ Answered: **Spokenly** (2026-10-05). The direct download of Spokenly runs a scri
 A tool `journal_create` (text, title, date, bookmark) through one Kairos shortcut with Journal's "Create Entry" action, so a routine can turn dictations into journal entries directly. Write only: Journal offers no way to read or delete entries, so such a change could not be undone.
 
 **Blocked** (checked 2026-10-05, Journal 3.0): on macOS 27 Journal still declares "Create Entry" (text, title, date, bookmark, place, media) but without a name, so Shortcuts on the Mac shows no Journal action and refuses to import one ("not supported on this device"). On macOS 26 it was available. Journal has no AppleScript support, its `moments://` links only open the app and its settings, and its data is protected (it would need Full Disk Access, which Kairos never asks for) and encrypted. Until the action returns: journal entries wait in Dictations as notes titled "Journal …", and an iPhone automation turns them into Journal entries (README recipe). Re-check after each macOS 27 update.
-
-### 0.14 Mail housekeeping (M)
-Three new Mail write tools: move to Trash, archive, and mark as read or unread. Mail writes stay opt in through the existing write setting for Mail.
-- **Never a permanent delete.** No tool empties the Trash or deletes a message outright. Messages only move, so they can always be found again in Mail (until Mail's own setting for erasing deleted messages removes them from the Trash).
-- **Undo, like every change.** Each call goes into the activity log, and follows the previews setting: with previews on it shows Kairos' preview and needs a one time confirmation, with previews off it acts at once. Undo moves a message back to its original mailbox, or flips read back to unread (and the other way). Undo refuses when the message was moved or changed since.
-- **Small and exact.** At most 10 messages per call, addressed by id only, never by a search query.
-- **Only on your word.** Acting on a message because text written by someone else asks for it (an email saying "delete this" or "archive your inbox") is refused, unless you named that message yourself in the chat. Kairos cannot see who asked for a call, so this rule lives in Kairos' instructions and the tool descriptions; with previews on, the preview and its confirmation are the check you see.
-- **Archive** uses the account's own archive mailbox and refuses when an account has none, rather than guessing.
-
-*Needs:* the move, undo and preview patterns proven in 0.11.
 
 ### 0.15 See your time
 

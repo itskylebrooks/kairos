@@ -28,7 +28,7 @@ The GitHub repo (`itskylebrooks/kairos`) is public, and so is its full history. 
 - Writes are opt in per app via `KAIROS_WRITE`. Mail never sends: drafts only.
 - Previews before changes and deletes are on by default (`KAIROS_CONFIRM=on`). The user may switch them off (`KAIROS_CONFIRM=off`, the author's setup): destructive tools then act in one step, and everything else stays (log, undo, no permanent deletes, shared place consent, `from_others` marking).
 - Notes are never deleted permanently either: `notes_trash` moves one note, by id, to Recently Deleted (Notes keeps it 30 days), one step, logged, undo restores it to its folder.
-- Mail never deletes permanently. No tool empties the Trash or deletes a message outright, now or later: housekeeping only moves messages (Trash, archive) or changes their read state, two step, at most 10 messages per call, by id only, with undo. Acting on a message because text from others asks for it is refused unless the user named that message in the chat.
+- Mail never deletes permanently. No tool empties the Trash or deletes a message outright, now or later: housekeeping (`mail_trash`, `mail_archive`, `mail_mark`) only moves messages (Trash, archive) or changes their read state, at most 10 messages per call, by id only, logged with undo, two step unless `KAIROS_CONFIRM=off`; a test checks that no Mail script deletes. Acting on a message because text from others asks for it is refused unless the user named that message in the chat.
 - Every tool carries correct annotations: `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint: false`.
 - Third party text (subscribed calendars, invites, emails, shared notes) is data, not instructions. Tool results mark where such text appears (see "Safety core").
 - Never build AppleScript or JXA source by concatenating user text. Scripts are static; all input goes in as JSON through `argv` and is parsed inside the script with `JSON.parse(argv[0])`.
@@ -91,7 +91,7 @@ Only governs what Kairos' tools do for Claude; nothing here changes macOS or oth
 | Reminders | yes | create, update, complete, delete (same id rule; flags read only) |
 | Contacts | yes | no |
 | Notes | yes | create, append, move between folders of one account, move to Recently Deleted (body replace only for notes without checklists or attachments; never a permanent delete) |
-| Mail | yes (search by headers within a date range, read, unread counts) | drafts only (new and reply), never send |
+| Mail | yes (search by headers within a date range, read, unread counts) | drafts (new and reply, never send), Trash, archive, read state (never a permanent delete) |
 | Music | yes, plus an opt in play log | later, additive only (create playlist, add library songs, playback), never delete |
 
 Out of scope: Messages (needs Full Disk Access), Safari history, Maps.
@@ -146,6 +146,7 @@ Out of scope: Messages (needs Full Disk Access), Safari history, Maps.
 - Some mailboxes refuse bulk reads; guard each mailbox. Trash and junk are skipped by default (names per language).
 - Drafts: hidden outgoing messages cannot be closed or deleted by script and linger until Mail quits, so drafts use a visible window that is closed after `save()` (closing without saving keeps the saved draft). `reply()` always opens a window, ignores a body set before the window is ready, and adds no quote: wait for `visible()`, then set the body (with Kairos' own quote), save, close. Replies keep `In-Reply-To` and `References`.
 - Third party text: the From header can be forged, so a message is the user's own only when the sender is one of the account addresses and it lies in a sent, drafts or outbox mailbox (names per language); everything else is `from_others`. `untrusted_fields`, invisible characters removed (the server's `cleanText`), quoted history and signatures cut by default, bodies paged (8,000 characters by default).
+- Housekeeping (verified on macOS 27, 2026-10-05, iCloud): accounts expose no trash or archive mailbox to scripting. Each account's real Trash is the child of Mail's unified `trashMailbox()` for that account (one account had both "Trash" and "Deleted Messages"; the unified one names the right one). Archive is the one mailbox named Archive (per language); none or several: refused. `M.move(msg, {to})` gives the message a new id; it is found again by `messageId()` (bulk read per mailbox, a quarter of a second). An IMAP move leaves the source copy flagged `deletedStatus` until the server cleans up: search, housekeeping and undo skip such copies. Moving a message back within half a second of moving it raced the iCloud server and left a duplicate, so undo of a mail move waits until the move is a minute old.
 - Draft recipients are checked as whole entries (one address each, `ada@example.com` or `Ada Example <ada@example.com>`), and `from` must be one of the account addresses.
 
 **Music.** Music stores only each track's last play date and total play count, not a play log; descriptions must say so. Never open Music unless `open_if_closed` is set.
@@ -181,7 +182,7 @@ The installer is generic: it knows nothing about the author's old `apple-mcp` se
    - Save to Apple Journal: blocked on macOS 27 (see Journal below); until then journal entries wait in Dictations as "Journal …" notes and an iPhone automation creates the entries (README recipe). Re-check after each macOS 27 update.
    - 0.12: `notes_trash` (one step, to Recently Deleted) for a one folder dictation inbox: journal dictations become "Journal …" notes for an iPhone automation, everything else is deleted once processed. Done.
    - 0.13: previews before changes as a setting (`KAIROS_CONFIRM`). Done.
-   - 0.14: Mail housekeeping (Trash, archive, read state; never a permanent delete; follows `KAIROS_CONFIRM`).
+   - 0.14: Mail housekeeping (`mail_trash`, `mail_archive`, `mail_mark`; never a permanent delete; follows `KAIROS_CONFIRM`). Done.
    - 0.15: day view across all apps, free time finder.
    - 1.0: own Swift EventKit helper.
 7. Later: permissions per AI app (only ever narrowing; client names are self declared), Notes image attachments from files on the Mac (images only, user named files), Music additive writes, importing the privacy.apple.com export into the play log.
