@@ -113,7 +113,7 @@ Or build it by hand: let the shortcut receive **Text**, add a **Text** action wi
 - Instead of a key, a button: copy the mode's deeplink in Spokenly (`spokenly://toggle?mode_id=…`), put it into a one action shortcut (**Open URL**) and pin that to the menu bar or Control Center, or give it a keyboard shortcut.
 - The first recordings make macOS ask whether "Save Dictation" may save to a note and output text: choose **Always Allow** each time; after that it stays quiet.
 
-**4. Routine.** A scheduled task in the Claude desktop app on this Mac (not a cloud routine: those cannot reach Kairos), for example twice a day: read the notes in Dictations, decide for each whether it is a journal entry, a task (`reminders_create`), a draft (`notes_create`) or something to ask about, then file the original with `notes_move` into Dictations/Processed. Moving is one step, logged and undoable, so the routine can run on its own.
+**4. Routine.** Set up a scheduled task in the Claude desktop app on this Mac (not a cloud routine: those cannot reach Kairos). Its prompt holds your own rules for sorting; Kairos holds none, it only provides the tools. For example, twice a day: read the notes in Dictations, decide for each whether it is a journal entry, a task (`reminders_create`), a draft (`notes_create`) or something to ask about, then file the original with `notes_move` into Dictations/Processed. Moving is one step, logged and undoable, so the routine can run on its own.
 
 ## Music play log
 
