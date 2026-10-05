@@ -13,7 +13,7 @@ import { registerUndo } from "../lib/activity.js";
 import { assertNotShared } from "../lib/safety.js";
 import { runShortcut } from "../lib/shortcuts.js";
 import { fold } from "../lib/text.js";
-import { ADD, READ, UPDATE, defineTool } from "../lib/tools.js";
+import { ADD, MOVE, READ, UPDATE, defineTool } from "../lib/tools.js";
 import { escapeInline, noteToMarkdown, parseBridgeItems } from "../lib/notes-html.js";
 import { SHORTCUT_APPEND, SHORTCUT_CREATE, SHORTCUT_READ } from "./notes-shortcuts.js";
 
@@ -509,6 +509,37 @@ async function notesAppend({ id, markdown, allow_shared } = /** @type {any} */ (
   };
 }
 
+/**
+ * Moves a note to another folder by id. One step, like creating: nothing is lost, and undo
+ * moves it back. Refused for Recently Deleted (either way), moves between accounts, and
+ * shared places without allow_shared.
+ */
+async function notesMove({ id, folder, allow_shared } = /** @type {any} */ ({})) {
+  if (folder === undefined || folder === null || String(folder).trim() === "") throw new UserError("folder is required: a folder id, a path like \"iCloud/Dictations/Processed\", or a unique folder name.");
+  const n = await getNote(id);
+  const { byId } = await folderTree({ fresh: true });
+  const from = byId.get(n.folder);
+  const to = await resolveFolder(folder);
+  if (from?.deleted) throw new UserError("This note is in Recently Deleted. Restore it in Notes first.");
+  if (to.deleted) throw new UserError("Kairos does not move notes to Recently Deleted.");
+  if (from && from.id === to.id) return { moved: false, message: `The note is already in ${to.path}.`, ...summary(n, byId), _journal: false };
+  if (from && from.account !== to.account) throw new UserError(`The note is in the account "${from.account}" and the folder in "${to.account}". Kairos only moves notes within one account.`);
+  // Moving out of or into a shared folder changes what other people see.
+  assertNotShared(!!(n.shared || from?.shared || to.shared), allow_shared, `Moving the note "${n.name}" from ${from?.path ?? "its folder"} to ${to.path}`);
+  await settleNote(n.id);
+  await notesJxa(JXA_MOVE, { id: n.id, folder: to.id }, WRITE_TIMEOUT_MS);
+  const after = await getNote(n.id);
+  if (after.folder !== to.id) throw new Error(`Notes did not move the note to ${to.path}.`);
+  return {
+    moved: true, from: from?.path ?? null, ...summary(after, byId),
+    _journal: {
+      action: "move", target: { kind: "note", id: n.id, title: n.name }, summary: `Moved the note "${n.name}" from ${from?.path ?? "?"} to ${to.path}.`,
+      before: { id: n.id, title: n.name, folder: n.folder, folder_path: from?.path ?? null }, after: { id: n.id, title: n.name, folder: to.id, folder_path: to.path },
+      undo: { possible: true },
+    },
+  };
+}
+
 /** Whether a note can be put back from its backup through notes_replace. */
 function restorable(n, old, folderShared = false) {
   if (n.shared || folderShared) return { possible: false, reason: "The note is shared; Kairos does not rewrite shared notes." };
@@ -542,6 +573,30 @@ registerUndo("notes", "create", {
     return { result: { moved_to: "Recently Deleted", id: e.after.id, title: e.after.title }, journal: { action: "trash", target: { kind: "note", id: e.after.id, title: e.after.title }, summary: `Moved "${e.after.title}" to Recently Deleted (undo of its creation).`, before: e.after, after: null } };
   },
 });
+
+// A move is undone by moving the note back, as long as it is still where Kairos put it.
+// Edits made in between do not matter: a move never touches the text.
+registerUndo("notes", "move", {
+  async preview(e) {
+    const { n, back } = await moveBackPlan(e);
+    return { summary: `Move the note "${n.name}" back from ${e.after.folder_path} to ${back.path}.` };
+  },
+  async run(e) {
+    const { n, back } = await moveBackPlan(e);
+    await settleNote(n.id);
+    await notesJxa(JXA_MOVE, { id: n.id, folder: back.id }, WRITE_TIMEOUT_MS);
+    return { result: { moved_to: back.path, id: n.id, title: n.name }, journal: { action: "move", target: { kind: "note", id: n.id, title: n.name }, summary: `Moved "${n.name}" back to ${back.path} (undo of a move).`, before: e.after, after: { id: n.id, title: n.name, folder: back.id, folder_path: back.path } } };
+  },
+});
+
+async function moveBackPlan(e) {
+  let n;
+  try { n = await getNote(e.after.id); } catch { throw new UserError(`The note "${e.after.title}" no longer exists.`); }
+  if (n.folder !== e.after.folder) throw new UserError(`The note "${n.name}" is no longer in ${e.after.folder_path}; it was moved again since, so Kairos leaves it where it is.`);
+  const back = (await folderTree({ fresh: true })).byId.get(e.before.folder);
+  if (!back || back.deleted) throw new UserError(`The folder the note came from (${e.before.folder_path}) no longer exists.`);
+  return { n, back };
+}
 
 for (const action of ["append", "replace"]) {
   registerUndo("notes", action, {
@@ -708,6 +763,11 @@ export const tools = [
     name: "notes_append", app: "notes", title: "Append to a note", annotations: ADD, handler: notesAppend,
     description: `Add Markdown at the end of an existing note, keeping everything already in it (checklists, attachments). Refused for locked notes, notes in Recently Deleted, and notes whose title is not unique; shared notes or folders need allow_shared (ask the user first). ${MD}`,
     inputSchema: { type: "object", additionalProperties: false, required: ["id", "markdown"], properties: { id: NOTE_ID, markdown: { type: "string" }, allow_shared: ALLOW_SHARED } },
+  }),
+  defineTool({
+    name: "notes_move", app: "notes", title: "Move a note to another folder", annotations: MOVE, handler: notesMove,
+    description: "Move a note, by id, to another folder in the same account (folder id, path like \"iCloud/Dictations/Processed\", or a unique folder name). One step: nothing is lost, the move is logged, and kairos_undo moves it back. Refused for notes in Recently Deleted, moves to Recently Deleted or between accounts; moving into, out of or within shared places needs allow_shared (ask the user first). Moving a note to the folder it is already in changes nothing.",
+    inputSchema: { type: "object", additionalProperties: false, required: ["id", "folder"], properties: { id: NOTE_ID, folder: { type: "string", description: "Destination folder: id, path, or unique name." }, allow_shared: ALLOW_SHARED } },
   }),
   defineTool({
     name: "notes_replace", app: "notes", title: "Replace a note's text", annotations: UPDATE, handler: notesReplace, preview: previewReplace,

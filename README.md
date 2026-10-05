@@ -67,7 +67,7 @@ If a Shortcuts window ever asks you to **pick a note or type text**, click **Can
 | Calendar | `calendar_calendars`, `calendar_read` | `calendar_create`, `calendar_update`, `calendar_delete` |
 | Reminders | `reminders_lists`, `reminders_read` | `reminders_create`, `reminders_update`, `reminders_complete`, `reminders_delete` |
 | Contacts | `contacts_search`, `contacts_birthdays` | none |
-| Notes | `notes_folders`, `notes_list`, `notes_search`, `notes_read` | `notes_create`, `notes_append`, `notes_replace` |
+| Notes | `notes_folders`, `notes_list`, `notes_search`, `notes_read` | `notes_create`, `notes_append`, `notes_move`, `notes_replace` |
 | Mail | `mail_mailboxes`, `mail_unread`, `mail_search`, `mail_read` | `mail_create_draft` (never sends) |
 | Music | `music_now`, `music_played`, `music_top`, `music_search`, `music_playlists`, `music_history_status`, `music_history_top`, `music_history_timeline` | none |
 | Kairos | `kairos_activity`, `kairos_health` | `kairos_undo` (when any app may write) |
@@ -85,8 +85,17 @@ Limits worth knowing:
 Kairos keeps a private log of every change it makes for Claude: what, when, and the state before and after. Ask Claude "what did you change this week?" (`kairos_activity`) or "undo that" (`kairos_undo`).
 
 - **Undo is careful.** It shows a preview and needs your yes, like every change. It is refused when the item was changed after Kairos' change, so it never overwrites your own later edits, and an older change waits until later changes to the same item are undone.
-- **What can be undone:** created events and reminders are deleted again, changed ones get their earlier values back, deleted ones are recreated (with a new id; event alerts are not restored), completed reminders are reopened, notes Kairos added to or replaced get their earlier text back from the private backup, and a note Kairos created moves to Recently Deleted. Mail drafts are not undone (delete them in Mail), and changes the EventKit helper cannot reverse (clearing a field that was empty before) say why.
+- **What can be undone:** created events and reminders are deleted again, changed ones get their earlier values back, deleted ones are recreated (with a new id; event alerts are not restored), completed reminders are reopened, notes Kairos added to or replaced get their earlier text back from the private backup, a moved note goes back to its folder (unless it was moved again since), and a note Kairos created moves to Recently Deleted. Mail drafts are not undone (delete them in Mail), and changes the EventKit helper cannot reverse (clearing a field that was empty before) say why.
 - **Private and short lived:** the log lives in `~/Library/Application Support/Kairos/activity/`, readable only by you, and keeps 90 days. It lists only changes made through Kairos, never edits you make in the apps.
+
+## Dictation inbox (a recipe)
+
+Kairos needs no setup of its own for dictation: you dictate, a shortcut files the text, and a Claude routine sorts it with Kairos' tools.
+
+1. **Folders:** create a Notes folder **Dictations** (the inbox) with a subfolder **Processed**.
+2. **Shortcut:** in the Shortcuts app, make a shortcut (for example "Save Dictation") that creates a note in the folder Dictations, with the current date and time as title and the shortcut's input as body.
+3. **Spokenly:** use the version from [spokenly.app](https://spokenly.app/download), not the Mac App Store one (that one cannot run shortcuts). In your main mode, leave the AI instructions empty and set the script to `shortcuts run "Save Dictation" --input-path -`. A script that prints nothing inserts nothing, so the text only lands in Notes, and Spokenly's history keeps every recording. The first runs ask whether the shortcut may save to Notes: choose **Always Allow** each time.
+4. **Routine:** a scheduled task in the Claude desktop app on this Mac (not a cloud routine: those cannot reach Kairos), for example twice a day: read the notes in Dictations, decide for each whether it is a journal entry, a task (`reminders_create`), a draft (`notes_create`) or something to ask about, then file the original with `notes_move` into Dictations/Processed. Moving is one step, logged and undoable, so the routine can run on its own.
 
 ## Music play log
 

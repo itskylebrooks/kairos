@@ -13,6 +13,8 @@ export const READ = Object.freeze({ readOnlyHint: true, destructiveHint: false, 
 export const ADD = Object.freeze({ readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false });
 /** Overwrites fields of an existing item; repeating it changes nothing more. */
 export const UPDATE = Object.freeze({ readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false });
+/** Moves an existing item somewhere else; nothing is lost and it can be moved back. */
+export const MOVE = Object.freeze({ readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false });
 /** Removes an existing item. */
 export const DELETE = Object.freeze({ readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false });
 

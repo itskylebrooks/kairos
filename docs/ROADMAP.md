@@ -13,37 +13,25 @@ What is done, what comes next, and the known limits each step removes. Kept curr
 - **Activity log with undo:** a private log of every change Kairos makes, kept 90 days, with "what did Claude change" and a careful undo that never overwrites later edits.
 - **Release prep (0.9.0):** MIT license, README for people who are not developers, changelog, security policy, type checking and CI.
 - **Health check (0.10):** `kairos_health` and a terminal command say which permissions or parts are missing and how to fix each, in plain words; the installer runs it as its last step.
+- **Notes move and dictation inbox (0.11):** `notes_move` moves a note to another folder in one step, logged and undoable, so a routine can file processed notes. Dictation itself needs nothing from Kairos: Spokenly saves each recording into a Notes inbox through your own shortcut, and a Claude routine on the Mac sorts the inbox with Kairos' tools (recipe in the README).
 
 ## Next
 
 Planned as small releases, in this order. Sizes: S (a day or two), M (about a week), L (several weeks). Each milestone lists what it needs first.
 
-### Open questions (short experiments, about a day in total)
+### Open questions (short experiments)
 
 Answered before the features that depend on them are built, so their design rests on facts:
-- **Spokenly:** can each mode save to its own Notes folder? (Decides the routing in 0.11.)
-- **Apple Journal:** does Journal's "Create Entry" action run from a Kairos shortcut without opening a window, and can it set the entry's date? (Decides whether 0.11 can save to Journal at all.)
+- **Apple Journal:** does Journal's "Create Entry" action run from a Kairos shortcut without opening a window, and can it set the entry's date? (Decides whether Kairos can save to Journal at all.)
 - **Own EventKit helper:** how is a Swift binary signed and delivered, and does each Mac need Xcode to build it? (Decides how 1.0 is installed.)
 - **Notes images:** can a file be attached to a note through a Kairos shortcut without a window? (Only if cheap; the feature itself is under Later.)
 
-### 0.11 Dictation to journal
+Answered: **Spokenly** (2026-10-05). The direct download of Spokenly runs a script per mode with the transcript, and a script that prints nothing inserts nothing, so a recording can go straight into Notes through a shortcut. The Mac App Store version is sandboxed and cannot run shortcuts, and it is no longer updated. One inbox turned out simpler than routing by mode: see the dictation inbox recipe in the README.
 
-#### Building blocks (S each)
-- **Move a note between folders:** two step, logged, undoable; refuses shared destinations without your agreement.
-- **Runner for allowlisted shortcuts:** Kairos can start a named shortcut it installed, and nothing else.
+### Save to Apple Journal (S)
+If the Journal experiment works: one Kairos shortcut with Journal's "Create Entry" action (title, body, date) and a tool to call it, so a routine can turn dictations into journal entries. Journal is write only for Kairos: entries cannot be read back, and the routine decides whether to keep a readable copy as a note.
 
-#### Journal from dictations (M)
-Spoken dictations land as notes in a dedicated Notes folder that works as an inbox. When you ask ("process my dictations"), Claude reads the unprocessed ones through Kairos, polishes each into a journal entry following your own journal rules (kept outside this repo, for example in a private Claude skill), and saves it to Apple Journal through an allowlisted shortcut using Journal's "Create Entry" action: title, body as Markdown, date set to the recording time.
-- **The raw dictation is never edited.** It moves to a "Processed" folder, and every step goes into the activity log so it can be undone.
-- **Journal is write only for Kairos:** entries cannot be read back. To decide: whether Kairos also keeps a readable copy (for example a note), and where.
-
-#### Dictation with Spokenly (S)
-Make recording the start of that pipeline. Spokenly on the Mac can start recording in a given mode through a deep link (`spokenly://start?mode_id=…`) and has a command line tool.
-- **To test:** whether each Spokenly mode can save to its own Notes folder (for example journal, blog, meeting). If yes, the mode does the routing.
-- **If not:** the first spoken word of a recording ("Journal.", "Blog.") routes it, and Claude asks when it is unclear.
-- **Private mode:** dictations in a private mode are never processed or copied. Claude only reads them into a chat when you ask.
-
-*Needs:* the two building blocks, and the Spokenly and Journal answers above.
+*Needs:* the Journal answer above.
 
 ### 0.12 See your time
 
