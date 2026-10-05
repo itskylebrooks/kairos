@@ -8,6 +8,9 @@
 **Dictation inbox**
 - The README recipe now needs one folder, Dictations: the routine deletes each processed dictation, and journal dictations become notes titled "Journal …" that an iPhone automation turns into Journal entries (Journal has no Shortcuts action on macOS 27).
 
+**Shortcuts renamed**
+- Kairos' shortcuts are now named "Kairos: Create Note", "Kairos: Append to Note" and "Kairos: Read Note". To update: run `./install.sh` and click Add Shortcut for each, then delete the old "Kairos Notes Create", "Kairos Notes Append" and "Kairos Notes Read" in the Shortcuts app (the installer and the health check point out any that are left). macOS asks "Always Allow" once more for the new ones.
+
 **Fixes**
 - **Notes:** a folder created moments ago was reported as unknown for up to a minute (Kairos keeps the folder list for 60 seconds). An unknown folder name now reads the list again once before giving up.
 

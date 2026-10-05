@@ -17,7 +17,8 @@ PRIVATE_NODE="$DIR/runtime/node-kairos"
 NODE_DIST="https://nodejs.org/dist/latest-v24.x"
 SERVER="$DIR/src/server.js"
 SHORTCUTS_DIR="$DIR/build/shortcuts"
-NOTES_SHORTCUTS=("Kairos Notes Create" "Kairos Notes Append" "Kairos Notes Read")
+NOTES_SHORTCUTS=("Kairos: Create Note" "Kairos: Append to Note" "Kairos: Read Note")
+OLD_SHORTCUTS=("Kairos Notes Create" "Kairos Notes Append" "Kairos Notes Read") # names before 0.12
 APPS="notes,calendar,reminders,contacts,music,mail"   # apps built so far
 WRITABLE_APPS="notes calendar reminders mail"
 
@@ -148,6 +149,12 @@ if [ "${#missing[@]}" -gt 0 ]; then
     [ "$left" -eq 0 ] || fail "$left shortcut(s) were not added. Open the files in $SHORTCUTS_DIR by hand, then run this again."
     for name in "${missing[@]}"; do ok "$name"; done
   fi
+fi
+# Shortcuts from before 0.12 had other names. Kairos no longer runs them; they can go.
+old=()
+for name in "${OLD_SHORTCUTS[@]}"; do grep -qxF "$name" <<<"$installed" && old+=("$name"); done
+if [ "${#old[@]}" -gt 0 ]; then
+  warn "No longer used, delete them in the Shortcuts app: ${old[*]}"
 fi
 
 # 4. Self test: the protocol only, reads no data.

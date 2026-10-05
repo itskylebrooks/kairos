@@ -94,10 +94,10 @@ Press one key, speak, press it again: the text lands as a note in a Notes inbox,
 
 **1. Folder.** In Notes, create a folder **Dictations**: the inbox. It is the only folder this needs.
 
-**2. Shortcut.** In the Shortcuts app, make a shortcut **Save Dictation**. On macOS 27 you can describe it in plain words:
+**2. Shortcut.** In the Shortcuts app, make a shortcut **Kairos: Save Dictation**. On macOS 27 you can describe it in plain words:
 
 ```
-Create a shortcut named "Save Dictation" that receives text as input and is allowed to run from the command line. It should take the text it receives, put the line "Dictation" followed by the current date and time at the top, then a new line, then the received text exactly as it is. Then create a new note in the Notes app in the folder "Dictations" with that text, so the first line becomes the note's title. It must not ask me anything, not show any window or notification, and not output anything. If the received text is empty, do nothing.
+Create a shortcut named "Kairos: Save Dictation" that receives text as input and is allowed to run from the command line. It should take the text it receives, put the line "Dictation" followed by the current date and time at the top, then a new line, then the received text exactly as it is. Then create a new note in the Notes app in the folder "Dictations" with that text, so the first line becomes the note's title. It must not ask me anything, not show any window or notification, and not output anything. If the received text is empty, do nothing.
 ```
 
 Or build it by hand: let the shortcut receive **Text**, add a **Text** action with "Dictation", the **Current Date** and, on the next line, the **Shortcut Input**, then a **Create Note** action with that text in the folder **Dictations**. Check that the folder is fixed, not "Ask each time", or every dictation would open a picker. Any date format works; with the time included, several dictations a day stay apart.
@@ -106,12 +106,12 @@ Or build it by hand: let the shortcut receive **Text**, add a **Text** action wi
 - Create a separate mode for the inbox, for example **Kairos**, so your other modes still type into apps as before.
 - Leave its AI instructions empty and set its **Pre-AI Script** to:
   ```
-  shortcuts run "Save Dictation" --input-path -
+  shortcuts run "Kairos: Save Dictation" --input-path -
   ```
   The script prints nothing, and a script that prints nothing inserts nothing: the text only lands in Notes. (With AI cleanup in the mode, use the Post-AI Script slot instead, and the note gets the cleaned text.) Spokenly's history keeps every recording, so nothing is lost if a save ever fails.
 - Give the mode its own activation key, for example the **right Option key**: press to start, press again to stop, and the note appears.
 - Instead of a key, a button: copy the mode's deeplink in Spokenly (`spokenly://toggle?mode_id=…`), put it into a one action shortcut (**Open URL**) and pin that to the menu bar or Control Center, or give it a keyboard shortcut.
-- The first recordings make macOS ask whether "Save Dictation" may save to a note and output text: choose **Always Allow** each time; after that it stays quiet.
+- The first recordings make macOS ask whether "Kairos: Save Dictation" may save to a note and output text: choose **Always Allow** each time; after that it stays quiet.
 
 **4. Routine.** Set up a scheduled task in the Claude desktop app on this Mac (not a cloud routine: those cannot reach Kairos). Its prompt holds your own rules; Kairos holds none, it only provides the tools. For example, twice a day, for every note in Dictations whose title starts with "Dictation":
 - a **journal entry:** write the polished text as a new note in Dictations titled **"Journal"** plus the recording time from the original title (`notes_create`), then delete the original (`notes_trash`);
@@ -194,7 +194,7 @@ It checks every enabled app's permissions, Kairos' Notes shortcuts, its private 
 | Claude does not show Kairos' tools | Quit Claude with Cmd+Q (not just the window) and open it again. If they still do not appear, run `./install.sh` again and check that it ends with "Wrote the kairos entry". |
 | "macOS hasn't allowed access to …" | Allow it in **System Settings > Privacy & Security**: under **Automation** for Notes, Contacts, Mail, Music and Calendar (the entry is `node-kairos`), under **Calendars** and **Reminders** for the EventKit helper (`event`). |
 | Calendar or Reminders come back empty | The EventKit helper answers with empty lists while it has no permission. Check **Calendars** and **Reminders** in Privacy & Security. |
-| "The shortcut … is not installed, or is installed twice" | Open the Shortcuts app, delete any duplicate **Kairos Notes** shortcuts, then run `./install.sh` again. |
+| "The shortcut … is not installed, or is installed twice" | Open the Shortcuts app, delete any duplicate **Kairos: …** shortcuts, then run `./install.sh` again. |
 | A Shortcuts window asks you to pick a note or type text | Click **Cancel**. Nothing is written without your choice, and Kairos never needs it. |
 | Notes stops answering Kairos (a write times out, or the answer says Notes may be stuck) | Quit Notes (Cmd+Q) and open it again. Kairos waits for Notes to settle after its own writes, but a stuck Notes needs a restart. |
 | "Mail is not running" | Open Mail. Kairos never opens it by itself. |
@@ -213,7 +213,7 @@ cd ~/kairos && git pull && ./install.sh
 
 1. `./install.sh --music-log off` (if the play log is on).
 2. Remove the `kairos` entry from `~/Library/Application Support/Claude/claude_desktop_config.json` while Claude is quit.
-3. Delete the three **Kairos Notes** shortcuts in the Shortcuts app.
+3. Delete the three **Kairos: …** shortcuts (Create Note, Append to Note, Read Note) in the Shortcuts app.
 4. Delete this folder, and `~/Library/Application Support/Kairos/` if you do not want to keep backups, the activity log and play history.
 
 ## Roadmap

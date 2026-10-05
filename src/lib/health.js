@@ -16,7 +16,7 @@ import { dataDir } from "./paths.js";
 import { AGENT_LABEL, status as playlogStatus } from "./playlog.js";
 import { runSync } from "./run.js";
 import { listShortcuts, runShortcut } from "./shortcuts.js";
-import { SHORTCUT_APPEND, SHORTCUT_CREATE, SHORTCUT_READ } from "../apps/notes-shortcuts.js";
+import { OLD_SHORTCUT_NAMES, SHORTCUT_APPEND, SHORTCUT_CREATE, SHORTCUT_READ } from "../apps/notes-shortcuts.js";
 import { uniqueNoteTitle } from "../apps/notes.js";
 
 /** @typedef {"ok" | "problem" | "warning" | "skipped"} Status */
@@ -180,6 +180,8 @@ export async function checkHealth({ config, apps, root = ROOT, execPath = proces
       if (missing.length) add("notes", "Kairos shortcuts", "problem", `Not installed: ${missing.map((n) => `"${n}"`).join(", ")}. Without them Kairos cannot write notes.`, "Run ./install.sh and click Add Shortcut for each.");
       if (twice.length) add("notes", "Kairos shortcuts", "problem", `Installed more than once: ${twice.map((n) => `"${n}"`).join(", ")}. Shortcuts then cannot tell which one to run.`, "Open the Shortcuts app, delete every copy of these, then run ./install.sh.");
       if (!missing.length && !twice.length) add("notes", "Kairos shortcuts", "ok", "All three Kairos shortcuts are installed, once each.");
+      const old = OLD_SHORTCUT_NAMES.filter((n) => count(n) > 0);
+      if (old.length) add("notes", "old Kairos shortcuts", "warning", `No longer used since Kairos 0.12: ${old.map((n) => `"${n}"`).join(", ")}.`, "Delete them in the Shortcuts app; Kairos uses the shortcuts named \"Kairos: …\" now.");
       // Notes access belongs to each shortcut. The probe reads a note whose title exists
       // exactly once: older read shortcuts wait for a person when nothing matches. The text
       // read is discarded.

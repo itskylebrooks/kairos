@@ -50,7 +50,7 @@ function fixtures(over = {}) {
       ...over.osascript,
     },
     shortcuts: {
-      "Kairos Notes Read": [{ match: { name: "Ada's café list" }, output: "matches: 1\nAda's café list\nBuy oat milk\n\t◦\tcoffee\n\t✓\ttea\n" }],
+      "Kairos: Read Note": [{ match: { name: "Ada's café list" }, output: "matches: 1\nAda's café list\nBuy oat milk\n\t◦\tcoffee\n\t✓\ttea\n" }],
       ...over.shortcuts,
     },
   };
@@ -106,7 +106,7 @@ test("read: Markdown body with checklist ticks from the read shortcut", async ()
 });
 
 test("read: checklist state unknown when the shortcut is missing, and says why", async () => {
-  setFakeFixtures(fixtures({ shortcuts: { "Kairos Notes Read": [{ error: "Couldn’t find shortcut" }] } }));
+  setFakeFixtures(fixtures({ shortcuts: { "Kairos: Read Note": [{ error: "Couldn’t find shortcut" }] } }));
   const r = await call("notes_read", { id: N(10) });
   assert.equal(r.checklists, "unknown");
   assert.match(r.checklist_note, /not installed/);
@@ -133,13 +133,13 @@ test("create: title and folder name go to the shortcut, a repeated title heading
       "notes.by_name": [{ match: { name: "Weekly plan" }, output: [{ id: N(20), folder: F(4), created }] }],
       "notes.get": [{ match: { id: N(20) }, output: note({ id: N(20), name: "Weekly plan", folder: F(4), created }) }],
     },
-    shortcuts: { "Kairos Notes Create": [{ output: "created" }] },
+    shortcuts: { "Kairos: Create Note": [{ output: "created" }] },
   });
   setFakeFixtures(fx);
   const r = await call("notes_create", { title: "Weekly plan", markdown: "# Weekly plan\n\n- [ ] Call Ada", folder: "Projects/Kairos Test" });
   assert.equal(r.id, N(20));
   assert.equal(r.folder, "iCloud/Projects/Kairos Test");
-  const run = fx.calls.shortcuts.find((c) => c.name === "Kairos Notes Create");
+  const run = fx.calls.shortcuts.find((c) => c.name === "Kairos: Create Note");
   assert.deepEqual(run.input, { title: "Weekly plan", folder: "Kairos Test", markdown: "- [ ] Call Ada", has_body: "yes" });
 });
 
@@ -164,16 +164,16 @@ test("append: a copy in Recently Deleted does not count against uniqueness", asy
       "notes.by_name": [{ output: [{ id: N(10), folder: F(2) }, { id: N(98), folder: F(1) }] }],
       "notes.get": [{ match: { id: N(10) }, once: true, output: note() }, { match: { id: N(10) }, output: note({ modified: T(6) }) }],
     },
-    shortcuts: { "Kairos Notes Append": [{ output: "matches: 1" }] },
+    shortcuts: { "Kairos: Append to Note": [{ output: "matches: 1" }] },
   });
   setFakeFixtures(fx);
   const r = await call("notes_append", { id: N(10), markdown: "\n- [ ] more\n" });
   assert.equal(r.appended, true);
-  assert.deepEqual(fx.calls.shortcuts.find((c) => c.name === "Kairos Notes Append").input, { name: "Ada's café list", markdown: "- [ ] more" });
+  assert.deepEqual(fx.calls.shortcuts.find((c) => c.name === "Kairos: Append to Note").input, { name: "Ada's café list", markdown: "- [ ] more" });
 });
 
 test("append: when the shortcut's own guard finds no single match, nothing is claimed", async () => {
-  setFakeFixtures(fixtures({ shortcuts: { "Kairos Notes Append": [{ output: "matches: 0" }] } }));
+  setFakeFixtures(fixtures({ shortcuts: { "Kairos: Append to Note": [{ output: "matches: 0" }] } }));
   await rejectsUser(call("notes_append", { id: N(10), markdown: "more" }), /Nothing was written: Shortcuts found 0/);
 });
 
@@ -202,7 +202,7 @@ test("replace: tables are not counted as attachments", async () => {
       "notes.get": [{ match: { id: N(10) }, once: true, output: withTable }, { match: { id: N(10) }, output: note({ text: "Ada's café list\nNew body\nlast line" }) }],
       "notes.clear": [{ output: { name: "Ada's café list" } }],
     },
-    shortcuts: { "Kairos Notes Append": [{ output: "matches: 1" }], "Kairos Notes Read": [{ output: "matches: 1\n\t◦\tcoffee\n\t✓\ttea" }] },
+    shortcuts: { "Kairos: Append to Note": [{ output: "matches: 1" }], "Kairos: Read Note": [{ output: "matches: 1\n\t◦\tcoffee\n\t✓\ttea" }] },
   });
   setFakeFixtures(fx);
   const r = await call("notes_replace", { id: N(10), markdown: "New body\n\nlast line", expected_modified: T(5) });
@@ -217,8 +217,8 @@ test("replace: rebuilds title and body through Markdown and keeps a private back
       "notes.clear": [{ output: { name: "Plan *v2*" } }],
     },
     shortcuts: {
-      "Kairos Notes Read": [{ match: { name: "Ada's café list" }, output: "matches: 1\n\t◦\tcoffee\n\t✓\ttea" }, { match: { name: "Plan *v2*" }, output: "matches: 1\n" }],
-      "Kairos Notes Append": [{ output: "matches: 1" }],
+      "Kairos: Read Note": [{ match: { name: "Ada's café list" }, output: "matches: 1\n\t◦\tcoffee\n\t✓\ttea" }, { match: { name: "Plan *v2*" }, output: "matches: 1\n" }],
+      "Kairos: Append to Note": [{ output: "matches: 1" }],
     },
   });
   setFakeFixtures(fx);
@@ -226,7 +226,7 @@ test("replace: rebuilds title and body through Markdown and keeps a private back
   assert.equal(r.replaced, true);
   const clear = fx.calls.osascript.find((c) => c.name === "notes.clear");
   assert.deepEqual(clear.input, { id: N(10), name: "Plan *v2*" });
-  const append = fx.calls.shortcuts.find((c) => c.name === "Kairos Notes Append");
+  const append = fx.calls.shortcuts.find((c) => c.name === "Kairos: Append to Note");
   assert.deepEqual(append.input, { name: "Plan *v2*", markdown: "# Plan \\*v2\\*\n\nStep one\n\n- [x] Done" });
 
   const dir = join(dataDir, "backups", "notes");
@@ -241,11 +241,11 @@ test("replace: rebuilds title and body through Markdown and keeps a private back
 test("replace: a failed write puts the old text back and says so", async () => {
   const fx = fixtures({
     osascript: { "notes.clear": [{ output: { name: "Ada's café list" } }] },
-    shortcuts: { "Kairos Notes Append": [{ once: true, output: "matches: 0" }, { output: "matches: 1" }] },
+    shortcuts: { "Kairos: Append to Note": [{ once: true, output: "matches: 0" }, { output: "matches: 1" }] },
   });
   setFakeFixtures(fx);
   await rejectsUser(call("notes_replace", { id: N(10), markdown: "new", expected_modified: T(5) }), /Replacing failed[\s\S]*previous text was written back/);
-  const appends = fx.calls.shortcuts.filter((c) => c.name === "Kairos Notes Append").map((c) => c.input.markdown);
+  const appends = fx.calls.shortcuts.filter((c) => c.name === "Kairos: Append to Note").map((c) => c.input.markdown);
   assert.equal(appends.length, 2);
   assert.equal(appends[1], "# Ada's café list\n\nBuy **oat milk**\n- [ ] coffee\n- [x] tea");
 });
@@ -259,7 +259,7 @@ test("shared: creating in a shared folder or appending to a shared note needs al
       "notes.by_name": [{ match: { name: "Team plan" }, output: [{ id: N(30), folder: F(4), created }] }, { output: [{ id: N(10), folder: F(2) }] }],
       "notes.get": [{ match: { id: N(30) }, output: note({ id: N(30), name: "Team plan", folder: F(4), created }) }, { match: { id: N(10) }, once: true, output: note({ shared: true }) }, { match: { id: N(10) }, output: note({ shared: true, modified: T(6) }) }],
     },
-    shortcuts: { "Kairos Notes Create": [{ output: "created" }], "Kairos Notes Append": [{ output: "matches: 1" }] },
+    shortcuts: { "Kairos: Create Note": [{ output: "created" }], "Kairos: Append to Note": [{ output: "matches: 1" }] },
   });
   setFakeFixtures(fx);
   await rejectsUser(call("notes_create", { title: "Team plan", folder: F(4) }), /shared with other people.*allow_shared: true/s);

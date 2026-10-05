@@ -9,9 +9,11 @@ import {
   DV, attachment, count, descriptor, endIf, getText, getValueForKey, ifIs, real, ref, text, uuid, workflow,
 } from "../lib/wfbuild.js";
 
-export const SHORTCUT_CREATE = "Kairos Notes Create";
-export const SHORTCUT_APPEND = "Kairos Notes Append";
-export const SHORTCUT_READ = "Kairos Notes Read";
+export const SHORTCUT_CREATE = "Kairos: Create Note";
+export const SHORTCUT_APPEND = "Kairos: Append to Note";
+export const SHORTCUT_READ = "Kairos: Read Note";
+/** Names used before 0.12; such shortcuts are no longer run and can be deleted. */
+export const OLD_SHORTCUT_NAMES = Object.freeze(["Kairos Notes Create", "Kairos Notes Append", "Kairos Notes Read"]);
 
 const NOTES = (intent, requiresApp) => descriptor("com.apple.Notes", "Notes", intent, requiresApp);
 

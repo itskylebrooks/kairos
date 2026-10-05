@@ -13,7 +13,7 @@ const SHORTCUTS = "/usr/bin/shortcuts";
 let queue = Promise.resolve();
 
 /**
- * @param {string} name  installed shortcut name, e.g. "Kairos Notes Append"
+ * @param {string} name  installed shortcut name, e.g. "Kairos: Append to Note"
  * @param {Record<string, unknown>} input
  * @param {{ app?: string, timeoutMs?: number }} [opts]  app: the app it touches, for messages
  * @returns {Promise<string>} the shortcut's text output ("" when it returns nothing)

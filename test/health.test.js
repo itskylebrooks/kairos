@@ -60,8 +60,8 @@ function fixtures(over = {}) {
       { prefix: ["calendar", "list"], output: over.events ?? [{ id: "e1", title: "Kairos Test event" }] },
       { prefix: ["reminders", "lists", "list"], output: over.lists ?? [{ id: "l1", title: "Kairos Test" }] },
     ],
-    shortcuts_list: over.shortcuts ?? ["Some other shortcut", "Kairos Notes Create", "Kairos Notes Append", "Kairos Notes Read"],
-    shortcuts: { "Kairos Notes Read": [{ match: { name: "Ada's café list" }, output: "matches: 1\nAda's café list\n" }] },
+    shortcuts_list: over.shortcuts ?? ["Some other shortcut", "Kairos: Create Note", "Kairos: Append to Note", "Kairos: Read Note"],
+    shortcuts: { "Kairos: Read Note": [{ match: { name: "Ada's café list" }, output: "matches: 1\nAda's café list\n" }] },
     agent_loaded: over.agent_loaded ?? true,
   };
 }
@@ -105,7 +105,7 @@ test("each problem comes with a fix in plain words", async () => {
         app("Music", { running: true, ok: true, error: null }),
       ],
       events: [], lists: [],
-      shortcuts: ["Kairos Notes Create", "Kairos Notes Read", "Kairos Notes Read"],
+      shortcuts: ["Kairos: Create Note", "Kairos: Read Note", "Kairos: Read Note"],
     }), { root: fakeRoot({ tamper: true }), config: readConfig({ KAIROS_MAX_RESULT_CHARS: "lots" }) });
     const r = await report;
     assert.equal(r.ok, false);

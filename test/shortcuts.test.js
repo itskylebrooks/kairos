@@ -88,7 +88,7 @@ test("plists are valid", { skip: !existsSync("/usr/bin/plutil") }, () => {
 });
 
 test("shortcut failures become messages that say what to do", () => {
-  const m = (msg) => shortcutError("Kairos Notes Append", "Notes", msg);
+  const m = (msg) => shortcutError("Kairos: Append to Note", "Notes", msg);
   assert.match(m("Error: This shortcut can’t access “Notes”.").message, /Always Allow/);
   assert.match(m("Couldn’t find shortcut").message, /not installed/);
   assert.match(m("The shortcut could not be run because an action could not be found.").message, /install\.sh again/);
