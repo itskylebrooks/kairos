@@ -22,16 +22,15 @@ Planned as small releases, in this order. Sizes: S (a day or two), M (about a we
 ### Open questions (short experiments)
 
 Answered before the features that depend on them are built, so their design rests on facts:
-- **Apple Journal:** does Journal's "Create Entry" action run from a Kairos shortcut without opening a window, and can it set the entry's date? (Decides whether Kairos can save to Journal at all.)
 - **Own EventKit helper:** how is a Swift binary signed and delivered, and does each Mac need Xcode to build it? (Decides how 1.0 is installed.)
 - **Notes images:** can a file be attached to a note through a Kairos shortcut without a window? (Only if cheap; the feature itself is under Later.)
 
 Answered: **Spokenly** (2026-10-05). The direct download of Spokenly runs a script per mode with the transcript, and a script that prints nothing inserts nothing, so a recording can go straight into Notes through a shortcut. The Mac App Store version is sandboxed and cannot run shortcuts, and it is no longer updated. One inbox turned out simpler than routing by mode: see the dictation inbox recipe in the README.
 
-### Save to Apple Journal (S)
-If the Journal experiment works: one Kairos shortcut with Journal's "Create Entry" action (title, body, date) and a tool to call it, so a routine can turn dictations into journal entries. Journal is write only for Kairos: entries cannot be read back, and the routine decides whether to keep a readable copy as a note.
+### Save to Apple Journal (S), blocked on macOS 27
+A tool `journal_create` (text, title, date, bookmark) through one Kairos shortcut with Journal's "Create Entry" action, so a routine can turn dictations into journal entries directly. Write only: Journal offers no way to read or delete entries, so such a change could not be undone.
 
-*Needs:* the Journal answer above.
+**Blocked** (checked 2026-10-05, Journal 3.0): on macOS 27 Journal still declares "Create Entry" (text, title, date, bookmark, place, media) but without a name, so Shortcuts on the Mac shows no Journal action and refuses to import one ("not supported on this device"). On macOS 26 it was available. Journal has no AppleScript support, its `moments://` links only open the app and its settings, and its data is protected (it would need Full Disk Access, which Kairos never asks for) and encrypted. Until the action returns: journal entries go to the Notes folder **Dictations/Journal**, and an iPhone automation turns them into Journal entries (README recipe). Re-check after each macOS 27 update.
 
 ### 0.12 See your time
 

@@ -92,7 +92,7 @@ Kairos keeps a private log of every change it makes for Claude: what, when, and 
 
 Press one key, speak, press it again: the text lands as a note in a Notes inbox, and a Claude routine sorts it later with Kairos' tools. Kairos needs no setup of its own for this.
 
-**1. Folders.** In Notes, create a folder **Dictations** (the inbox) with a subfolder **Processed**.
+**1. Folders.** In Notes, create a folder **Dictations** (the inbox) with the subfolders **Processed** and **Journal**.
 
 **2. Shortcut.** In the Shortcuts app, make a shortcut **Save Dictation**. On macOS 27 you can describe it in plain words:
 
@@ -113,7 +113,12 @@ Or build it by hand: let the shortcut receive **Text**, add a **Text** action wi
 - Instead of a key, a button: copy the mode's deeplink in Spokenly (`spokenly://toggle?mode_id=…`), put it into a one action shortcut (**Open URL**) and pin that to the menu bar or Control Center, or give it a keyboard shortcut.
 - The first recordings make macOS ask whether "Save Dictation" may save to a note and output text: choose **Always Allow** each time; after that it stays quiet.
 
-**4. Routine.** Set up a scheduled task in the Claude desktop app on this Mac (not a cloud routine: those cannot reach Kairos). Its prompt holds your own rules for sorting; Kairos holds none, it only provides the tools. For example, twice a day: read the notes in Dictations, decide for each whether it is a journal entry, a task (`reminders_create`), a draft (`notes_create`) or something to ask about, then file the original with `notes_move` into Dictations/Processed. Moving is one step, logged and undoable, so the routine can run on its own.
+**4. Routine.** Set up a scheduled task in the Claude desktop app on this Mac (not a cloud routine: those cannot reach Kairos). Its prompt holds your own rules for sorting; Kairos holds none, it only provides the tools. For example, twice a day: read the notes in Dictations, decide for each whether it is a journal entry (`notes_create` into Dictations/Journal, see step 5), a task (`reminders_create`), a draft (`notes_create`) or something to ask about, then file the original with `notes_move` into Dictations/Processed. Moving is one step, logged and undoable, so the routine can run on its own.
+
+**5. Journal entries, through your iPhone.** On macOS 27 the Journal app offers no Shortcuts action (its "Create Entry" action is missing in Shortcuts on the Mac, though it existed on macOS 26), has no scripting support, and its data is protected and encrypted, so Kairos cannot create Journal entries on the Mac. The iPhone can:
+- The routine writes each finished entry as a note into **Dictations/Journal** (title, text, and the day it is about).
+- On the iPhone, make a personal automation in Shortcuts (for example daily at a fixed time, set to run without asking) that finds the notes in the folder Dictations/Journal, creates a Journal entry from each with Journal's **Create Entry** action, and then deletes the note (or moves it elsewhere), so no entry is created twice.
+- When the action returns to Shortcuts on the Mac, Kairos can save to Journal directly; see the [roadmap](docs/ROADMAP.md).
 
 ## Music play log
 
