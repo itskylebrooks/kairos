@@ -56,7 +56,7 @@ The first time Kairos uses an app (usually during the installer's health check),
 
 - **Notes, Contacts, Mail, Music, Calendar list:** "… wants to control …". Allow it.
 - **Calendar and Reminders events:** the EventKit helper (`event`) asks for access to Calendars and Reminders. Allow it.
-- **Kairos shortcuts:** the first run of each Kairos shortcut asks for access to Notes. Choose **Always Allow**.
+- **Kairos shortcuts:** the first run of each Kairos shortcut asks for access to Notes, sometimes once per step ("save in a note", "append to a note", "output text"), and again when another app such as Spokenly runs the shortcut for the first time. Choose **Always Allow** each time; after that they stay quiet. You can review this in the Shortcuts app, in each shortcut's privacy settings.
 
 If a Shortcuts window ever asks you to **pick a note or type text**, click **Cancel**: Kairos never needs that, and it would mean something went wrong.
 
@@ -132,7 +132,12 @@ Everything below applies only to what Kairos' tools do for Claude. Kairos change
 
 **What depends on Claude:** following the rule that text from others is data, and asking you before answering a preview with a confirmation. Kairos makes this as hard to get wrong as it can (Claude never sees a change happen without a preview step), but it cannot tell whether *you* said yes.
 
-**Our advice:** leave the Claude app's approval prompt **on** for Kairos' write tools, and do not choose "Always allow" for them. That prompt is a second check that only you can answer.
+**Claude's approval prompts: your choice.** The Claude app can ask before every tool call, or you choose "Always allow" per tool. Kairos is built so that running it fully autonomously is a reasonable choice:
+
+- **Fully autonomous** ("Always allow" for every Kairos tool): Claude reads, creates and changes without asking you each time. The safety nets above stay in place: Kairos still previews every change or delete in the chat first, Mail can never send or delete, and every change is logged and can be undone with "undo that". The remaining risk is text written by someone else (an email, an invitation) talking Claude into a change you did not want; you would see it in the activity log and undo it.
+- **Middle ground:** "Always allow" for the reading and creating tools, and keep the prompt only for tools that change, complete or delete existing things (`*_update`, `*_delete`, `reminders_complete`, `notes_replace`, `kairos_undo`). Those are rare, so the prompt seldom appears.
+
+macOS and the Shortcuts app ask their own questions once (see "Permission prompts"); those are separate from Claude's approvals.
 
 **Known limits:** invitations someone else sent into one of your own calendars, and reminder lists shared with you, are not marked as `from_others` yet, because the EventKit helper does not report organizers or sharing. Kairos' own EventKit helper (planned) will fix this; see the [roadmap](docs/ROADMAP.md) for this and the other known limits.
 
