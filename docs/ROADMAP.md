@@ -15,28 +15,53 @@ What is done, what comes next, and the known limits each step removes. Kept curr
 
 ## Next
 
-### Health check
+Planned as small releases, in this order. Sizes: S (a day or two), M (about a week), L (several weeks). Each milestone lists what it needs first.
+
+### 0.10 Easy start
+
+#### Health check (S)
 One tool, and an installer step, that answers "which permissions are missing and how do I fix them" in plain words. For each enabled app it checks access (Automation for Notes, Contacts, Mail, Music and Calendar, Calendars and Reminders for the EventKit helper), whether the Kairos shortcuts are installed once each, whether Mail is running, whether the Music play log is on and recent, and which version runs. Every problem comes with the exact place in System Settings or the one command that fixes it. It only looks: it never opens Mail or Music, and it avoids checks that would trigger a permission prompt by themselves. For people who are not developers this helps more than anything else at install time.
 
-### Day view across all apps
-One tool for "what happened on September 12": the day's events, completed reminders, notes you edited, songs you played (from the play log) and, later, photos, merged into one timeline. Every app alone is a list; together they are a diary you did not have to write. Useful as context for a journal entry, but only when you ask for it.
+*Needs:* nothing new.
 
-### Free time finder
-"When do I have two free hours next week?" across all calendars, with rules you set once, for example "training evenings are blocked" or "nothing before 9 on Fridays". Mostly date math on data Kairos already reads.
+### Open questions (short experiments, about a day in total)
 
-### Journal from dictations
+Answered before the features that depend on them are built, so their design rests on facts:
+- **Spokenly:** can each mode save to its own Notes folder? (Decides the routing in 0.11.)
+- **Apple Journal:** does Journal's "Create Entry" action run from a Kairos shortcut without opening a window, and can it set the entry's date? (Decides whether 0.11 can save to Journal at all.)
+- **Own EventKit helper:** how is a Swift binary signed and delivered, and does each Mac need Xcode to build it? (Decides how 1.0 is installed.)
+- **Notes images:** can a file be attached to a note through a Kairos shortcut without a window? (Only if cheap; the feature itself is under Later.)
+
+### 0.11 Dictation to journal
+
+#### Building blocks (S each)
+- **Move a note between folders:** two step, logged, undoable; refuses shared destinations without your agreement.
+- **Runner for allowlisted shortcuts:** Kairos can start a named shortcut it installed, and nothing else.
+
+#### Journal from dictations (M)
 Spoken dictations land as notes in a dedicated Notes folder that works as an inbox. When you ask ("process my dictations"), Claude reads the unprocessed ones through Kairos, polishes each into a journal entry following your own journal rules (kept outside this repo, for example in a private Claude skill), and saves it to Apple Journal through an allowlisted shortcut using Journal's "Create Entry" action: title, body as Markdown, date set to the recording time.
 - **The raw dictation is never edited.** It moves to a "Processed" folder, and every step goes into the activity log so it can be undone.
 - **Journal is write only for Kairos:** entries cannot be read back. To decide: whether Kairos also keeps a readable copy (for example a note), and where.
-- **New pieces Kairos needs:** a tool to move notes between folders (two step, logged, undoable), and a general runner for allowlisted shortcuts, so Kairos can start a named shortcut it installed and nothing else.
 
-### Dictation with Spokenly
+#### Dictation with Spokenly (S)
 Make recording the start of that pipeline. Spokenly on the Mac can start recording in a given mode through a deep link (`spokenly://start?mode_id=…`) and has a command line tool.
 - **To test:** whether each Spokenly mode can save to its own Notes folder (for example journal, blog, meeting). If yes, the mode does the routing.
 - **If not:** the first spoken word of a recording ("Journal.", "Blog.") routes it, and Claude asks when it is unclear.
 - **Private mode:** dictations in a private mode are never processed or copied. Claude only reads them into a chat when you ask.
 
-### Mail housekeeping
+*Needs:* the two building blocks, and the Spokenly and Journal answers above.
+
+### 0.12 See your time
+
+#### Day view across all apps (M)
+One tool for "what happened on September 12": the day's events, completed reminders, notes you edited, songs you played (from the play log) and, later, photos, merged into one timeline. Every app alone is a list; together they are a diary you did not have to write. Useful as context for a journal entry, but only when you ask for it.
+
+#### Free time finder (S to M)
+"When do I have two free hours next week?" across all calendars, with rules you set once, for example "training evenings are blocked" or "nothing before 9 on Fridays". Mostly date math on data Kairos already reads.
+
+*Needs:* nothing new; both share the calendar reading and date code. The day view gets richer the longer the Music play log has been running.
+
+### 0.13 Mail housekeeping (M)
 Three new Mail write tools: move to Trash, archive, and mark as read or unread. Mail writes stay opt in through the existing write setting for Mail.
 - **Never a permanent delete.** No tool empties the Trash or deletes a message outright. Messages only move, so they can always be found again in Mail (until Mail's own setting for erasing deleted messages removes them from the Trash).
 - **Two steps and undo, like every change.** Each call shows Kairos' preview and needs a one time confirmation, and goes into the activity log. Undo moves a message back to its original mailbox, or flips read back to unread (and the other way). Undo refuses when the message was moved or changed since.
@@ -44,7 +69,9 @@ Three new Mail write tools: move to Trash, archive, and mark as read or unread. 
 - **Only on your word.** Acting on a message because text written by someone else asks for it (an email saying "delete this" or "archive your inbox") is refused, unless you named that message yourself in the chat. Kairos cannot see who asked for a call, so this rule lives in Kairos' instructions and the tool descriptions; the preview and its confirmation are the check you see.
 - **Archive** uses the account's own archive mailbox and refuses when an account has none, rather than guessing.
 
-### Kairos' own EventKit helper (1.0)
+*Needs:* the move, undo and preview patterns proven in 0.11.
+
+### 1.0 Kairos' own EventKit helper (L)
 A small Swift binary built from this repo, replacing the third party helper (`mcp-server-apple-events` 1.5.0) before the project is advertised. It removes these known limits:
 - **Invitations from others** in your own calendars are not marked `from_others`: the current helper does not report organizers or attendees.
 - **Reminder lists shared with you** are not marked `from_others`: the current helper does not report sharing.
@@ -54,6 +81,8 @@ A small Swift binary built from this repo, replacing the third party helper (`mc
 - **Calendars are addressed by name**, so writes need unique calendar names: the current helper reports no calendar ids.
 - **Day only reminders** get a hidden start date one hour earlier (harmless, but untidy).
 - The helper also contains a network sync command that Kairos never calls; our own binary will not have it at all.
+
+*Needs:* the EventKit answer above. This closes the last safety gap (invitations and shared reminder lists from others not marked), so it comes before Kairos is advertised.
 
 ## Later
 

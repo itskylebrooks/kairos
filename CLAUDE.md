@@ -158,7 +158,13 @@ The installer is generic: it knows nothing about the author's old `apple-mcp` se
 3. Contacts and Music, plus the Music play log. Done.
 4. Mail. Done.
 5. Release prep: MIT license, README polish, CHANGELOG, SECURITY.md, type check and CI, version 0.9.0. Done (permission prompt screenshots skipped).
-6. Next: health check tool (missing permissions and how to fix them), day view across all apps, free time finder, journal from dictations (notes move tool, allowlisted shortcut runner, Apple Journal "Create Entry"), Spokenly dictation routing, Mail housekeeping (Trash, archive, read state; never a permanent delete), own Swift EventKit helper (for 1.0).
+6. Next, as small releases (details and sizes in `docs/ROADMAP.md`):
+   - 0.10: health check (missing permissions and how to fix them).
+   - Open questions first (short spikes): Spokenly folder per mode, Apple Journal "Create Entry" without a window and with a date, signing and delivery of our own EventKit helper, Notes image attachment.
+   - 0.11: notes move tool and allowlisted shortcut runner, then journal from dictations with Spokenly routing.
+   - 0.12: day view across all apps, free time finder.
+   - 0.13: Mail housekeeping (Trash, archive, read state; never a permanent delete).
+   - 1.0: own Swift EventKit helper.
 7. Later: permissions per AI app (only ever narrowing; client names are self declared), Notes image attachments from files on the Mac (images only, user named files), Music additive writes, importing the privacy.apple.com export into the play log.
 
 `docs/ROADMAP.md` is the public version of this list, with the known limits each step removes. Update it with every change of plan or scope.
