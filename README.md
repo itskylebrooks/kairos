@@ -268,7 +268,7 @@ cd ~/kairos && git pull && ./install.sh
 ## Known limits of 1.0
 
 - **Tested on macOS 27 (Apple silicon), on one Mac so far.** Other macOS versions may differ, above all in Notes formatting and permission prompts; the health check shows what is missing.
-- **Calendar and Reminders go through a third party helper** (`event` from FradSer's mcp-server-apple-events 1.5.0), downloaded by the installer and pinned by checksum. Through it, Kairos cannot change or delete repeating events, clear a field, set reminder flags, or address calendars other than by a unique name. The helper also contains a cloud sync command that Kairos never calls. Kairos' own helper is the next big step after 1.0.
+- **Calendar and Reminders go through a third party helper** (`event` from FradSer's mcp-server-apple-events 1.5.0), downloaded by the installer and pinned by checksum. Through it, Kairos cannot change or delete repeating events, clear a field, set reminder flags, or address calendars other than by a unique name. The helper also contains a cloud sync command that Kairos never calls. Kairos' own helper is planned for 1.1.
 - **Invitations from other people** in your own calendars, and reminder lists shared with you, are not yet marked as text from others.
 - **Apple Journal** has no interface on the Mac in macOS 27; journal entries go through your iPhone (see the dictation recipe).
 - **Notes:** single checklist items cannot be ticked, and replacing a note's text is refused for notes with attachments or for shared notes.

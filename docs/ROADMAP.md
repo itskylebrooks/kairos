@@ -48,7 +48,9 @@ One tool for "what happened on September 12": the day's events, completed remind
 
 *Needs:* nothing new; both share the calendar reading and date code. The day view gets richer the longer the Music play log has been running.
 
-### After 1.0: Kairos' own EventKit helper (L)
+### 1.1: Kairos' own EventKit helper (L)
+The next release after 1.0. It keeps every tool name and answer the same and adds abilities on top, so it is a 1.x step, not 2.0; macOS asks once more for Calendars and Reminders access, because it is a new program.
+
 A small Swift binary built from this repo, replacing the third party helper (`mcp-server-apple-events` 1.5.0) that 1.0 still uses (its limits are listed as known limits of 1.0 in the README). It removes these known limits:
 - **Invitations from others** in your own calendars are not marked `from_others`: the current helper does not report organizers or attendees.
 - **Reminder lists shared with you** are not marked `from_others`: the current helper does not report sharing.
