@@ -115,10 +115,15 @@ Or build it by hand: let the shortcut receive **Text**, add a **Text** action wi
 
 **4. Routine.** A scheduled task in the Claude desktop app sorts the inbox. Its prompt holds your own rules; Kairos holds none, it only provides the tools.
 
-Set it up in the Claude desktop app: **Code** tab, **Routines**, **New routine**, **Local** (not a cloud routine: those run on Anthropic's servers and cannot reach Kairos on your Mac). Give it a name (for example "Process dictations"), paste the prompt below as its instructions, pick any folder (for example this Kairos folder; the task needs one but does not use it), and a schedule: **Daily** at a time of your choice, or ask Claude in any session to run it twice a day (for example "run my process-dictations task at 13:00 and 20:00"). Then:
-- Click **Run now** once and choose **always allow** for each Kairos tool it uses, so later runs never stall on a question.
-- Local tasks run only while the Claude app is open and the Mac is awake; a missed run is caught up once when the Mac wakes. **Settings > This computer > System > Keep computer awake** prevents idle sleep.
-- Every run appears under **Scheduled** in the sidebar with what it did, and "what did Kairos change?" lists every change; "undo that" takes one back.
+Set it up as a **scheduled task** in the Claude desktop app:
+- **Name** (for example "Process dictations") and **Instructions**: the prompt below.
+- **Frequency:** for example daily at a time of your choice; to run it twice a day, ask Claude for that schedule.
+- **Permissions: Auto**, so the task uses Kairos without pausing for approval.
+- **Require this computer: on.** This matters: without it the task runs on Anthropic's servers, which cannot reach Kairos on your Mac. With it, the task runs on this Mac, only while it is awake and the Claude app is open; a run that falls into sleep is skipped.
+- Before relying on it, run the task once by hand (for example with the instructions "Call the Kairos tool kairos_health and show me its summary") and check that Kairos answers.
+- "What did Kairos change?" lists every change a run made; "undo that" takes one back.
+
+A local routine in the app's **Code** tab (**Routines**, **New routine**, **Local**) works as well: it also runs on this Mac and can use Kairos; there, click **Run now** once and choose **always allow** for each Kairos tool.
 
 The prompt (adapt the folder names, and name your journal skill if you have one):
 
