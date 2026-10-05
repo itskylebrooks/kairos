@@ -94,7 +94,7 @@ Apple Music keeps only each song's **total** play count and **last** play date, 
 
 How it works:
 
-- A background job (`~/Library/LaunchAgents/kairos.music-log.plist`) checks **every hour and at login**. It takes the **first snapshot of each day** as soon as you use your Mac with Music open, and **another every 3 hours** while Music is open. It **never opens Music**: if Music is closed, it tries again an hour later.
+- A background job (`~/Library/LaunchAgents/kairos.music-log.plist`) checks **every full hour, at login and after the Mac wakes up**. It takes the **first snapshot of each day** as soon as you use your Mac with Music open, and **another every 3 hours** while Music is open. It **never opens Music**: if Music is closed, it tries again an hour later.
 - Only changed play counts are stored, keyed by Music's persistent track ID, with a full baseline each month. A year of history is around a megabyte.
 - Data lives in `~/Library/Application Support/Kairos/music/` (readable only by you). A short log with counts only, no song names, is in `~/Library/Logs/Kairos/music-log.log`.
 

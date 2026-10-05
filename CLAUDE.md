@@ -138,7 +138,7 @@ Out of scope: Messages (needs Full Disk Access), Safari history, Maps.
 - Only library tracks have counts: songs streamed without being added to the library are invisible.
 
 **Music play log** (opt in, `src/lib/playlog.js`, `src/cli/music-log.js`).
-- A LaunchAgent (`kairos.music-log`, in `~/Library/LaunchAgents/`) runs `music-log.js snapshot` hourly and at login. Not a timer in the MCP server: Claude starts and stops the server at will.
+- A LaunchAgent (`kairos.music-log`, in `~/Library/LaunchAgents/`) runs `music-log.js snapshot` every full hour (`StartCalendarInterval`), at login and once after waking. Not `StartInterval`: launchd skips those runs when they fall into sleep (seen on macOS 27, 2026-10-05: no run for two hours after a nap). Not a timer in the MCP server: Claude starts and stops the server at will.
 - The command never opens Music. It takes the first snapshot of each local day as soon as Music is open, then one every 3 hours while Music is open; otherwise it records the check and exits.
 - Verified on macOS 27 (2026-10-04): the private Node started by launchd (not by Claude) can control Music once the user allows the prompt.
 - Data in `~/Library/Application Support/Kairos/music/` (dir 0700, files 0600), never in the repo: `snapshots-YYYY.jsonl` (changed counts by persistent ID, a full baseline each month), `catalog.json` (metadata and earlier names), `state.json` (latest counts and last check; rebuilt from snapshots when missing). The log in `~/Library/Logs/Kairos/` holds counts and reasons, never track names.

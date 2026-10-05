@@ -133,3 +133,11 @@ test("a damaged line is skipped, not fatal", async () => {
   assert.equal(r.entries.length, 1);
   assert.equal(r.damaged, 1);
 });
+
+test("the background job runs every full hour and catches up after sleep (not StartInterval, which skips runs during sleep)", async () => {
+  const { agentPlist } = await import("../src/cli/music-log.js");
+  const p = agentPlist("/x/runtime/node-kairos", "/x/src/cli/music-log.js");
+  assert.match(p, /<key>StartCalendarInterval<\/key><dict><key>Minute<\/key><integer>0<\/integer><\/dict>/);
+  assert.doesNotMatch(p, /<key>StartInterval<\/key>/);
+  assert.match(p, /<key>RunAtLoad<\/key><true\/>/);
+});

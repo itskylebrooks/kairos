@@ -60,7 +60,9 @@ export function agentPlist(node = process.execPath, script = SELF) {
   <key>Label</key><string>${AGENT_LABEL}</string>
   <key>ProgramArguments</key>
   <array><string>${esc(node)}</string><string>${esc(script)}</string><string>snapshot</string></array>
-  <key>StartInterval</key><integer>3600</integer>
+  <!-- Every full hour. A calendar interval, not StartInterval: launchd skips StartInterval
+       runs that fall into sleep, but runs a missed calendar interval once on wake. -->
+  <key>StartCalendarInterval</key><dict><key>Minute</key><integer>0</integer></dict>
   <key>RunAtLoad</key><true/>
   <key>ProcessType</key><string>Background</string>
   <key>LowPriorityIO</key><true/>
