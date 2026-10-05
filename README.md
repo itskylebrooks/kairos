@@ -17,6 +17,7 @@ The point is care: Kairos reads by default, writes only where you allow it and o
 - "Any unread mail from Ada? Draft a reply that says yes."
 - "What did I listen to most last month?" (with the Music play log on)
 - "What did you change today?" and "Undo that."
+- "What can you do with Kairos?" (Claude answers from `kairos_help`: what each app can do in your setup, with examples and limits)
 
 ## Install
 
@@ -71,7 +72,7 @@ If a Shortcuts window ever asks you to **pick a note or type text**, click **Can
 | Notes | `notes_folders`, `notes_list`, `notes_search`, `notes_read` | `notes_create`, `notes_append`, `notes_move`, `notes_trash`, `notes_replace` |
 | Mail | `mail_mailboxes`, `mail_unread`, `mail_search`, `mail_read` | `mail_create_draft` (never sends), `mail_trash`, `mail_archive`, `mail_mark` |
 | Music | `music_now`, `music_played`, `music_top`, `music_search`, `music_playlists`, `music_history_status`, `music_history_top`, `music_history_timeline` | none |
-| Kairos | `kairos_activity`, `kairos_health` | `kairos_undo` (when any app may write) |
+| Kairos | `kairos_activity`, `kairos_health`, `kairos_help` | `kairos_undo` (when any app may write) |
 
 Limits worth knowing:
 

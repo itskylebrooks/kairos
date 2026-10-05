@@ -18,6 +18,7 @@ What is done, what comes next, and the known limits each step removes. Kept curr
 - **Previews as a setting (0.13):** `KAIROS_CONFIRM=off` lets every change and delete act at once (still logged and undoable) for people who want Kairos fully autonomous; on by default.
 - **Mail housekeeping (0.14):** `mail_trash`, `mail_archive` and `mail_mark` move up to 10 messages to their account's own Trash or Archive, or mark them read or unread; logged with undo, never a permanent delete.
 - **A limit on removals (0.15):** at most 20 items per hour can be removed (notes, events, reminders deleted; mail moved to the Trash), enforced by the Kairos server and counted from the activity log, so a fooled Claude cannot remove more. Fixed in the code, not a setting.
+- **What can Kairos do? (0.16):** `kairos_help` gives Claude an overview of what each app can do in this setup, with example requests and limits, so "what can you do with Kairos?" gets a real answer.
 
 ## Next
 
@@ -36,7 +37,7 @@ A tool `journal_create` (text, title, date, bookmark) through one Kairos shortcu
 
 **Blocked** (checked 2026-10-05, Journal 3.0): on macOS 27 Journal still declares "Create Entry" (text, title, date, bookmark, place, media) but without a name, so Shortcuts on the Mac shows no Journal action and refuses to import one ("not supported on this device"). On macOS 26 it was available. Journal has no AppleScript support, its `moments://` links only open the app and its settings, and its data is protected (it would need Full Disk Access, which Kairos never asks for) and encrypted. Until the action returns: journal entries wait in Dictations as notes titled "Journal …", and an iPhone automation turns them into Journal entries (README recipe). Re-check after each macOS 27 update.
 
-### 0.16 See your time
+### 0.17 See your time
 
 #### Day view across all apps (M)
 One tool for "what happened on September 12": the day's events, completed reminders, notes you edited, songs you played (from the play log) and, later, photos, merged into one timeline. Every app alone is a list; together they are a diary you did not have to write. Useful as context for a journal entry, but only when you ask for it.

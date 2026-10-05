@@ -6,6 +6,7 @@ import { findEntry, undoerFor, withUndoState } from "../lib/activity.js";
 import { addDays, isBareDay, isoLocal, parseArgDate, startOfDay } from "../lib/dates.js";
 import { UserError } from "../lib/errors.js";
 import { checkHealth } from "../lib/health.js";
+import { kairosHelp } from "../lib/help.js";
 import { clampInt } from "../lib/paging.js";
 import { CORE_APP, DELETE, READ, defineTool } from "../lib/tools.js";
 
@@ -107,6 +108,11 @@ export const tools = [
     name: "kairos_undo", app: CORE_APP, title: "Undo a change", annotations: DELETE, handler: kairosUndo, preview: previewUndo,
     description: "Undo one change from kairos_activity by its id. Refused when the item was changed after Kairos' change (undo never overwrites later edits), and for changes that cannot be undone (see why_not).",
     inputSchema: { type: "object", additionalProperties: false, required: ["id"], properties: { id: { type: "string", description: "Change id from kairos_activity (act-...)." } } },
+  }),
+  defineTool({
+    name: "kairos_help", app: CORE_APP, title: "What Kairos can do", annotations: READ, handler: (_args, ctx) => kairosHelp(ctx.config),
+    description: "An overview of what Kairos can do in this setup: per app what it reads and writes, example requests, and the limits (what is never possible). Only apps and write tools that are switched on are listed. Use it when the user asks what Kairos can do, which tools there are, or for ideas; answer in plain words with a few examples rather than listing tool names.",
+    inputSchema: { type: "object", additionalProperties: false, properties: {} },
   }),
   defineTool({
     name: "kairos_health", app: CORE_APP, title: "Check Kairos' setup", annotations: READ, handler: kairosHealth,

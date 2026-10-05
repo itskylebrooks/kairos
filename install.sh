@@ -163,7 +163,7 @@ fi
 say "4. Self test"
 LISTED="$(printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}' '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
   | KAIROS_APPS="$APPS" KAIROS_WRITE="$(tr ' ' ',' <<<"$WRITABLE_APPS")" "$NODE" "$SERVER" 2>/dev/null)"
-for tool in notes_folders notes_read notes_create notes_move notes_trash calendar_calendars calendar_read calendar_create reminders_lists reminders_read reminders_create contacts_search contacts_birthdays music_now music_played music_search mail_mailboxes mail_search mail_read mail_trash kairos_activity kairos_undo; do
+for tool in notes_folders notes_read notes_create notes_move notes_trash calendar_calendars calendar_read calendar_create reminders_lists reminders_read reminders_create contacts_search contacts_birthdays music_now music_played music_search mail_mailboxes mail_search mail_read mail_trash kairos_activity kairos_help kairos_undo; do
   grep -q "\"$tool\"" <<<"$LISTED" || fail "The server did not list $tool. Output: ${LISTED:0:300}"
 done
 ok "Kairos answers and lists its tools."

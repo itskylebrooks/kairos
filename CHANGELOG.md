@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+**What can Kairos do?**
+- New tool `kairos_help`: ask Claude "what can you do with Kairos?" and it answers from an overview of your setup: per app what Kairos reads and writes, example requests, and the limits. Only apps and write permissions you switched on are listed. It loads only when asked, so it costs nothing in other chats.
+
 **Docs**
 - The dictation routine in the README also carries out spoken commands: a dictation that starts with "Claude" is done with Kairos' tools at the next run; any other dictation is never treated as a command.
 

@@ -38,6 +38,7 @@ const INSTRUCTIONS_BASE = [
   "6. Notes: titles are returned separately from the Markdown body. Before notes_replace, read the note again and pass its modified value as expected_modified.",
   "7. Every change Kairos makes is logged. To answer \"what did you change\" use kairos_activity; to take a change back use kairos_undo with its id{UNDO_STEPS}.",
   "8. Large results come in parts. When a result has paging.has_more, more exists: fetch it only if you need it, by repeating the call with exactly the same arguments plus cursor set to paging.cursor. paging.unit is \"items\" (whole items of the list paging.field) or \"characters\" (one long text, cut at a line break where possible).",
+  "9. When the user asks what Kairos can do, which tools there are, or for ideas, call kairos_help and answer from it in plain words.",
 ].join("\n");
 
 /** The default instructions (previews on). */

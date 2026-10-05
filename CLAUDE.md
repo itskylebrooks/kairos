@@ -78,6 +78,10 @@ Only governs what Kairos' tools do for Claude; nothing here changes macOS or oth
 - The shortcut probe reads a note whose title exists exactly once (unlocked, outside Recently Deleted), never a missing title: older read shortcuts wait for a person when nothing matches.
 - macOS attributes permissions to the "responsible" app. Claude starts MCP servers through its own `disclaimer` helper, so `node-kairos` is responsible for itself; started from Terminal it would be Terminal. The terminal command therefore restarts itself through `event-disclaim` (skipped in fake mode or when `KAIROS_DISCLAIMED` is set), so it checks exactly what Kairos sees under Claude.
 
+### Overview for Claude (`src/lib/help.js`, tool `kairos_help`)
+
+- Per app: what Kairos reads and writes, example requests, limits; filtered to the enabled apps, write permissions and the previews setting. Loaded only when asked (instructions rule 9 points to it), so it costs no context otherwise. A test checks that every tool appears in it with the right read or write side: update `APP_HELP` with every new tool.
+
 ### Instructions string for the model
 
 - Tools that change, complete or delete existing things are two step: show Kairos' preview, wait for the user's yes, then repeat the call with the confirmation. Never confirm on the user's behalf. Creating events, reminders, notes and drafts is one step. With `KAIROS_CONFIRM=off` this rule says instead: act immediately on what the user asked for, then report exactly what changed (`instructions(confirm)` in server.js).
@@ -185,7 +189,8 @@ The installer is generic: it knows nothing about the author's old `apple-mcp` se
    - 0.13: previews before changes as a setting (`KAIROS_CONFIRM`). Done.
    - 0.14: Mail housekeeping (`mail_trash`, `mail_archive`, `mail_mark`; never a permanent delete; follows `KAIROS_CONFIRM`). Done.
    - 0.15: removal limit, 20 items per hour, server enforced, fixed in code. Done.
-   - 0.16: day view across all apps, free time finder.
+   - 0.16: `kairos_help`, an overview of what Kairos can do in this setup. Done.
+   - 0.17: day view across all apps, free time finder.
    - 1.0: own Swift EventKit helper.
 7. Later: permissions per AI app (only ever narrowing; client names are self declared), Notes image attachments from files on the Mac (images only, user named files), Music additive writes, importing the privacy.apple.com export into the play log.
 
