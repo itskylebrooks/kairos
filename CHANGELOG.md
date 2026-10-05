@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+**Fixes**
+- **Notes:** folder names with emoji were found only when typed exactly, including the invisible variation selector many emoji carry. Kairos now also finds "🎙️ Dictations" as "🎙 Dictations" or "Dictations", as long as that is unique; two folders that differ only by emoji are never guessed.
+
 ## 0.12.0 (2026-10-05)
 
 **Notes**

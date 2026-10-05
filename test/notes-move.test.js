@@ -195,3 +195,17 @@ test("undo of a trash is refused once the note left Recently Deleted", async () 
   const r = await call("notes_trash", { id: N(40) });
   assert.match((await call("kairos_undo", { id: r.activity_id })).error, /no longer in Recently Deleted/);
 });
+
+test("folder names match without emoji and their invisible variation selectors, only when unique", async () => {
+  const EMOJI = { ...FOLDERS, folders: [...FOLDERS.folders.map((f) => (f.id === F(5) ? { ...f, name: "🎙️ Dictations" } : f)), { id: F(9), name: "📚 Reading 📚", shared: false, container: ACC, account: ACC, count: 0 }, { id: F(10), name: "Reading", shared: false, container: ACC2, account: ACC2, count: 0 }] };
+  setFakeFixtures({ osascript: { "notes.folders": [{ output: EMOJI }], "notes.scan": [{ output: [] }] } });
+  const call = server();
+  await call("notes_folders", {});
+  for (const name of ["🎙️ Dictations", "🎙 Dictations", "Dictations", "dictations", "iCloud/Dictations/Processed", "Dictations/Processed"]) {
+    assert.equal((await call("notes_list", { folder: name })).total, 0, name);
+  }
+  const exact = await call("notes_list", { folder: "Reading" });
+  assert.equal(exact.error, undefined, "an exact name wins over a loose one");
+  assert.match((await call("notes_list", { folder: "📚 Reading" })).error, /matches 2 folders/, "two folders that differ only by emoji are not guessed");
+  assert.match((await call("notes_list", { folder: "Readings" })).error, /No Notes folder/);
+});

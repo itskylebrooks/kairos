@@ -180,11 +180,20 @@ async function resolveFolder(arg, fresh = false) {
   let hits = folders.filter((f) => f.path.toLowerCase() === lc);
   if (!hits.length) hits = folders.filter((f) => f.path.toLowerCase().split("/").slice(1).join("/") === lc);
   if (!hits.length && !s.includes("/")) hits = folders.filter((f) => f.name.toLowerCase() === lc);
+  // Forgiving: emoji, their invisible variation selectors and extra spaces do not count, so
+  // "Dictations" or "🎙 Dictations" find "🎙️ Dictations". Used only when nothing matched exactly.
+  if (!hits.length) {
+    const key = loose(s);
+    hits = folders.filter((f) => [f.path, f.path.split("/").slice(1).join("/"), ...(s.includes("/") ? [] : [f.name])].some((x) => loose(x) === key));
+  }
   if (hits.length === 1) return hits[0];
   if (!hits.length && !fresh) return resolveFolder(arg, true);
   if (!hits.length) throw new UserError(`No Notes folder "${s}". Use notes_folders to see folder ids and paths.`);
   throw new UserError(`"${s}" matches ${hits.length} folders: ${hits.map((f) => f.path).join(", ")}. Pass the folder id or full path.`);
 }
+
+/** A folder name or path without emoji, variation selectors and joiners, spaces squeezed, lower case. */
+export const loose = (x) => String(x).normalize("NFC").replace(/[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{1F3FB}-\u{1F3FF}\uFE0E\uFE0F\u200D\u20E3]/gu, "").replace(/\s*\/\s*/g, "/").replace(/\s+/g, " ").trim().toLowerCase().replace(/\/+$/, "");
 
 const visibleFolders = (folders, includeDeleted) => folders.filter((f) => includeDeleted || !f.deleted);
 
@@ -759,7 +768,7 @@ async function notesReplace(a = /** @type {any} */ ({})) {
 
 /* ================= tool definitions ================= */
 
-const FOLDER = { type: "string", description: "Folder id, path like \"iCloud/Work/Projects\", or a folder name that is unique." };
+const FOLDER = { type: "string", description: "Folder id, path like \"iCloud/Work/Projects\", or a folder name that is unique. Emoji in folder names may be left out (\"Dictations\" finds \"🎙️ Dictations\") when that is unique." };
 const DATE = { type: "string", description: "Date or date-time, e.g. 2030-01-31 or 2030-01-31T18:00 (local time)." };
 const ALLOW_SHARED = { type: "boolean", description: "Set only after the user agreed in the chat: writing into a shared folder or note lets other people read it." };
 const NOTE_ID = { type: "string", description: "Note id (x-coredata://.../ICNote/p123) from notes_list or notes_search." };
@@ -820,7 +829,7 @@ export const tools = [
   }),
   defineTool({
     name: "notes_move", app: "notes", title: "Move a note to another folder", annotations: MOVE, handler: notesMove,
-    description: "Move a note, by id, to another folder in the same account (folder id, path like \"iCloud/Dictations/Processed\", or a unique folder name). One step: nothing is lost, the move is logged, and kairos_undo moves it back. Refused for notes in Recently Deleted, moves to Recently Deleted or between accounts; moving into, out of or within shared places needs allow_shared (ask the user first). Moving a note to the folder it is already in changes nothing.",
+    description: "Move a note, by id, to another folder in the same account (folder id, path like \"iCloud/Dictations/Processed\", or a unique folder name; emoji in folder names may be left out). One step: nothing is lost, the move is logged, and kairos_undo moves it back. Refused for notes in Recently Deleted, moves to Recently Deleted or between accounts; moving into, out of or within shared places needs allow_shared (ask the user first). Moving a note to the folder it is already in changes nothing.",
     inputSchema: { type: "object", additionalProperties: false, required: ["id", "folder"], properties: { id: NOTE_ID, folder: { type: "string", description: "Destination folder: id, path, or unique name." }, allow_shared: ALLOW_SHARED } },
   }),
   defineTool({

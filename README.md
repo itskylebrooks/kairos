@@ -92,7 +92,7 @@ Kairos keeps a private log of every change it makes for Claude: what, when, and 
 
 Press one key, speak, press it again: the text lands as a note in a Notes inbox, and a Claude routine sorts it later with Kairos' tools. Kairos needs no setup of its own for this.
 
-**1. Folder.** In Notes, create a folder **Dictations**: the inbox. It is the only folder this needs.
+**1. Folder.** In Notes, create a folder **Dictations**: the inbox. It is the only folder this needs. Any name works, emoji included (for example "🎙️ Dictations"), as long as the Mac shortcut, the iPhone shortcut and the routine use the same folder; Kairos also finds it when the emoji is left out.
 
 **2. Shortcut.** In the Shortcuts app, make a shortcut **Kairos: Save Dictation**. On macOS 27 you can describe it in plain words:
 
