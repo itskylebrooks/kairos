@@ -90,12 +90,30 @@ Kairos keeps a private log of every change it makes for Claude: what, when, and 
 
 ## Dictation inbox (a recipe)
 
-Kairos needs no setup of its own for dictation: you dictate, a shortcut files the text, and a Claude routine sorts it with Kairos' tools.
+Press one key, speak, press it again: the text lands as a note in a Notes inbox, and a Claude routine sorts it later with Kairos' tools. Kairos needs no setup of its own for this.
 
-1. **Folders:** create a Notes folder **Dictations** (the inbox) with a subfolder **Processed**.
-2. **Shortcut:** in the Shortcuts app, make a shortcut (for example "Save Dictation") that creates a note in the folder Dictations, with the current date and time as title and the shortcut's input as body.
-3. **Spokenly:** use the version from [spokenly.app](https://spokenly.app/download), not the Mac App Store one (that one cannot run shortcuts). In your main mode, leave the AI instructions empty and set the script to `shortcuts run "Save Dictation" --input-path -`. A script that prints nothing inserts nothing, so the text only lands in Notes, and Spokenly's history keeps every recording. The first runs ask whether the shortcut may save to Notes: choose **Always Allow** each time.
-4. **Routine:** a scheduled task in the Claude desktop app on this Mac (not a cloud routine: those cannot reach Kairos), for example twice a day: read the notes in Dictations, decide for each whether it is a journal entry, a task (`reminders_create`), a draft (`notes_create`) or something to ask about, then file the original with `notes_move` into Dictations/Processed. Moving is one step, logged and undoable, so the routine can run on its own.
+**1. Folders.** In Notes, create a folder **Dictations** (the inbox) with a subfolder **Processed**.
+
+**2. Shortcut.** In the Shortcuts app, make a shortcut **Save Dictation**. On macOS 27 you can describe it in plain words:
+
+```
+Create a shortcut named "Save Dictation" that receives text as input and is allowed to run from the command line. It should take the text it receives, put the line "Dictation" followed by the current date and time at the top, then a new line, then the received text exactly as it is. Then create a new note in the Notes app in the folder "Dictations" with that text, so the first line becomes the note's title. It must not ask me anything, not show any window or notification, and not output anything. If the received text is empty, do nothing.
+```
+
+Or build it by hand: let the shortcut receive **Text**, add a **Text** action with "Dictation", the **Current Date** and, on the next line, the **Shortcut Input**, then a **Create Note** action with that text in the folder **Dictations**. Check that the folder is fixed, not "Ask each time", or every dictation would open a picker. Any date format works; with the time included, several dictations a day stay apart.
+
+**3. Spokenly.** Use the version from [spokenly.app](https://spokenly.app/download), not the Mac App Store one: that one is sandboxed, cannot run shortcuts, and is no longer updated.
+- Create a separate mode for the inbox, for example **Kairos**, so your other modes still type into apps as before.
+- Leave its AI instructions empty and set its **Pre-AI Script** to:
+  ```
+  shortcuts run "Save Dictation" --input-path -
+  ```
+  The script prints nothing, and a script that prints nothing inserts nothing: the text only lands in Notes. (With AI cleanup in the mode, use the Post-AI Script slot instead, and the note gets the cleaned text.) Spokenly's history keeps every recording, so nothing is lost if a save ever fails.
+- Give the mode its own activation key, for example the **right Option key**: press to start, press again to stop, and the note appears.
+- Instead of a key, a button: copy the mode's deeplink in Spokenly (`spokenly://toggle?mode_id=…`), put it into a one action shortcut (**Open URL**) and pin that to the menu bar or Control Center, or give it a keyboard shortcut.
+- The first recordings make macOS ask whether "Save Dictation" may save to a note and output text: choose **Always Allow** each time; after that it stays quiet.
+
+**4. Routine.** A scheduled task in the Claude desktop app on this Mac (not a cloud routine: those cannot reach Kairos), for example twice a day: read the notes in Dictations, decide for each whether it is a journal entry, a task (`reminders_create`), a draft (`notes_create`) or something to ask about, then file the original with `notes_move` into Dictations/Processed. Moving is one step, logged and undoable, so the routine can run on its own.
 
 ## Music play log
 
