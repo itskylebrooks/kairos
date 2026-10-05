@@ -180,8 +180,9 @@ The installer is generic: it knows nothing about the author's old `apple-mcp` se
    - 0.11: `notes_move` (one step). Done. Dictation needs nothing else in Kairos: Spokenly (direct download, not the sandboxed App Store build) runs the user's own shortcut into a Notes inbox, and a local Claude routine sorts it (README recipe). The Spokenly open question is answered.
    - Save to Apple Journal: blocked on macOS 27 (see Journal below); until then journal entries wait in Dictations as "Journal …" notes and an iPhone automation creates the entries (README recipe). Re-check after each macOS 27 update.
    - 0.12: `notes_trash` (one step, to Recently Deleted) for a one folder dictation inbox: journal dictations become "Journal …" notes for an iPhone automation, everything else is deleted once processed. Done.
-   - 0.13: day view across all apps, free time finder.
-   - 0.14: Mail housekeeping (Trash, archive, read state; never a permanent delete).
+   - 0.13: previews before changes as a setting (`KAIROS_CONFIRM`). Done.
+   - 0.14: Mail housekeeping (Trash, archive, read state; never a permanent delete; follows `KAIROS_CONFIRM`).
+   - 0.15: day view across all apps, free time finder.
    - 1.0: own Swift EventKit helper.
 7. Later: permissions per AI app (only ever narrowing; client names are self declared), Notes image attachments from files on the Mac (images only, user named files), Music additive writes, importing the privacy.apple.com export into the play log.
 
