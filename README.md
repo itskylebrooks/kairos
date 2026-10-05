@@ -82,6 +82,16 @@ Limits worth knowing:
 - **Notes** are written through Shortcuts so Notes itself turns Markdown into real headings, checklists and tables. Block quotes and inline code lose their styling. Kairos only changes notes whose title is unique, and `notes_replace` keeps a private backup of the old text in `~/Library/Application Support/Kairos/backups/notes/`. Writing into a shared note or folder needs your explicit agreement, since other people can read it; replacing a shared note, or a note in a shared folder, is refused. Long notes are read in parts.
 - **Large results come in parts.** One result holds at most 20,000 characters, so Claude's context does not fill up with a year of events at once. Lists are split between whole items (events, notes, messages, songs), and one long text, such as a note or an email, is split by characters. Claude asks for the next part only when it needs it.
 
+## Claude on your iPhone
+
+Kairos runs on your Mac, so only chats in the Claude app **on the Mac** can use it (and scheduled tasks with "Require this computer"). A chat you continue on your iPhone or on the web still shows earlier answers, but Claude there cannot reach Kairos, and it does not see Kairos' instructions either.
+
+To make Claude aware of that on every device, add a line to your personal preferences in Claude's settings, for example:
+
+```
+My Apple data on the Mac (Calendar, Reminders, Contacts, Notes, Mail, Music) is reached through Kairos, an MCP server that runs only in the Claude app on my Mac. On my iPhone or on the web, Kairos is not available: use what the app offers there, and if something needs Kairos, tell me to continue the chat on my Mac instead of guessing.
+```
+
 ## Activity log and undo
 
 Kairos keeps a private log of every change it makes for Claude: what, when, and the state before and after. Ask Claude "what did you change this week?" (`kairos_activity`) or "undo that" (`kairos_undo`).

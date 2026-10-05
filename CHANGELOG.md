@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+**Docs**
+- README: "Claude on your iPhone": Kairos works only in the Claude app on the Mac; a chat continued on the iPhone cannot use it. A ready-made line for Claude's personal preferences makes Claude aware of that on every device. Kairos' instructions and `kairos_help` say the same.
+
 ## 0.16.0 (2026-10-05)
 
 **What can Kairos do?**

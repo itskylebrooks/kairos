@@ -28,7 +28,7 @@ const RULE_DIRECT = "1. The user switched previews off: tools that change, compl
 export const instructions = (confirm = true) => INSTRUCTIONS_BASE.replace("{RULE1}", confirm ? RULE_CONFIRM : RULE_DIRECT).replace("{UNDO_STEPS}", confirm ? " (two steps, like every change)" : "");
 
 const INSTRUCTIONS_BASE = [
-  "Kairos gives access to the user's Apple data on this Mac (Calendar, Reminders, Contacts, Notes, Mail, Music). Only the apps and write tools the user enabled are listed.",
+  "Kairos gives access to the user's Apple data on this Mac (Calendar, Reminders, Contacts, Notes, Mail, Music). Only the apps and write tools the user enabled are listed. Kairos runs only on this Mac: it works only while the conversation runs in the Claude app on the Mac, which must be awake. On other devices (iPhone, the web) its tools are not available; say so and suggest continuing on the Mac rather than guessing at the data.",
   "Rules:",
   "{RULE1}",
   "2. Write calendar event titles and notes in English.",
